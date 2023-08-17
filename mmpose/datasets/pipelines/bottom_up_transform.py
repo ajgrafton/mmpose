@@ -536,6 +536,109 @@ class BottomUpRandomFlip:
             'joints'] = image, mask, joints
         return results
 
+@PIPELINES.register_module()
+class BottomUpRandomCrop:
+    """
+    Crop an area around the torso
+    """
+
+    def __init__(self, 
+                 width_factor_low,
+                 width_factor_high,
+                 height_factor_low,
+                 height_factor_high):
+        self.width_factor_low = width_factor_low
+        self.width_factor_high = width_factor_high
+        self.height_factor_low = height_factor_low
+        self.height_factor_high = height_factor_high
+    
+
+    def _torso_position(self, joints):
+        x = joints[0, :, 0]
+        y = joints[0, :, 1]
+        min_x = np.min(x)
+        min_y = np.min(y)
+        max_x = np.max(x)
+        max_y = np.max(y)
+        torso_width = max_x - min_x
+        torso_height = max_y - min_y
+        return min_x, max_x, min_y, max_y, torso_width, torso_height
+
+
+    def __call__(self, results):
+        image, mask, joints = results['img'], results['mask'], results['joints']
+
+        joints = joints[0]
+        mask = mask[0]
+        n_people = joints.shape[0]
+        if n_people != 1:
+            return results
+        joints = np.asarray(joints)
+        if np.any(joints[0, :, 2] != 2):
+            return results
+        
+        x1, x2, y1, y2, t_width, t_height = self._torso_position(joints)
+        
+        # Select a random centre point
+        cpx = int(np.random.random_integers(x1, x2))
+        cpy = int(np.random.random_integers(y1, y2))
+
+        # Select a random width and height
+        width_factor = np.random.uniform(self.width_factor_low, self.width_factor_high)
+        height_factor = np.random.uniform(self.height_factor_low, self.height_factor_high)
+        x_half_width = (width_factor + 0.5) * t_width
+        y_half_width = (height_factor + 0.5) * t_height
+
+        # Find the new clip for the image
+        x_low = int(cpx - x_half_width)
+        x_high = int(cpx + x_half_width + 1)
+        y_low = int(cpy - y_half_width)
+        y_high = int(cpy + y_half_width + 1)
+        i_width = image.shape[1]
+        i_height = image.shape[0]
+        x_low = np.clip(x_low, 0, i_width)
+        x_high = np.clip(x_high, 0, i_width)
+        y_low = np.clip(y_low, 0, i_height)
+        y_high = np.clip(y_high, 0, i_height)
+        # print(x_low, x_high, y_low, y_high)
+        # print(width_factor, height_factor, x_half_width, y_half_width)
+        # The new image and mask
+        image = image[y_low:y_high, x_low:x_high, ...]
+        mask = mask[y_low:y_high, x_low:x_high]
+
+        # Move the joint positions to the new offset
+        joints[:, :, 0] -= x_low
+        joints[:, :, 1] -= y_low
+        joint_ok = ((joints[:, :, 0] >= 0) & (joints[:, :, 1] >= 0) & 
+                    (joints[:, :, 0] < image.shape[1]) & (joints[:, :, 1] < image.shape[0]))
+        joint_ok = np.squeeze(joint_ok)
+        joint_not_ok = np.logical_not(joint_ok)
+        joints[:, joint_not_ok, 2] = 0
+
+        # Test image to show
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.imshow(image)
+        # plt.plot(joints[:, joints[0, :, 2] == 2, 0], joints[:, joints[0, :, 2] == 2, 1], 'ob')
+        # plt.plot(joints[:, joints[0, :, 2] != 2, 0], joints[:, joints[0, :, 2] != 2, 1], 'or')
+        # plt.figure()
+        # plt.imshow(mask)
+        # plt.show()
+        # exit()
+
+        joints = [joints]
+        mask = [mask]
+        results['img'] = image
+        results['joints'] = joints
+        results['mask'] = mask
+        return results
+        
+        # image is (h x w x 3)
+        # mask is (1 x h x w)
+        # joints is (n_people x n_joints x 3[x, y, vis])
+
+
+
 
 @PIPELINES.register_module()
 class BottomUpRandomAffine:
@@ -594,6 +697,7 @@ class BottomUpRandomAffine:
         """Perform data augmentation with random scaling & rotating."""
         image, mask, joints = results['img'], results['mask'], results[
             'joints']
+        
 
         self.input_size = results['ann_info']['image_size']
         if not isinstance(self.input_size, np.ndarray):
