@@ -567,6 +567,12 @@ class BottomUpRandomCrop:
 
     def __call__(self, results):
         image, mask, joints = results['img'], results['mask'], results['joints']
+        # print('RANDOM CROP')
+        # print(image.shape)
+        # print(mask.shape)
+        # print(joints.shape)
+
+        n_images = len(mask)
 
         joints = joints[0]
         mask = mask[0]
@@ -626,8 +632,8 @@ class BottomUpRandomCrop:
         # plt.show()
         # exit()
 
-        joints = [joints]
-        mask = [mask]
+        joints = [joints.copy() for _ in range(n_images)]
+        mask = [mask.copy() for _ in range(n_images)]
         results['img'] = image
         results['joints'] = joints
         results['mask'] = mask
@@ -697,7 +703,20 @@ class BottomUpRandomAffine:
         """Perform data augmentation with random scaling & rotating."""
         image, mask, joints = results['img'], results['mask'], results[
             'joints']
-        
+        # print('RANDOM AFFINE')
+        # print(image.shape)
+        # print([mi.shape for mi in mask])
+        # print([ji.shape for ji in joints])
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.subplot(121)
+        # plt.imshow(mask[0])
+        # plt.subplot(122)
+        # plt.imshow(mask[1])
+        # print(joints[0])
+        # print(joints[1])
+        # plt.show()
+        # print(joints.shape)
 
         self.input_size = results['ann_info']['image_size']
         if not isinstance(self.input_size, np.ndarray):
