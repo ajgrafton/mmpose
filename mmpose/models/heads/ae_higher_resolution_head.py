@@ -44,8 +44,11 @@ class AEHigherResolutionHead(nn.Module):
                  num_basic_blocks=4,
                  cat_output=None,
                  with_ae_loss=None,
-                 loss_keypoint=None):
+                 loss_keypoint=None,
+                 in_channel_subset=None):
         super().__init__()
+
+        self.in_channel_subset = in_channel_subset
 
         self.loss = build_loss(loss_keypoint)
         dim_tag = num_joints if tag_per_joint else 1
@@ -222,6 +225,9 @@ class AEHigherResolutionHead(nn.Module):
         """Forward function."""
         if isinstance(x, list):
             x = x[0]
+        
+        if self.in_channel_subset is not None:
+            x = x[:, self.in_channel_subset, :, :]
 
         final_outputs = []
         y = self.final_layers[0](x)
