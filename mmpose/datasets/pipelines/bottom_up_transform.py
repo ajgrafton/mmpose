@@ -590,20 +590,30 @@ class BottomUpRandomCrop:
         cpy = int(np.random.random_integers(y1, y2))
 
         # Select a random width and height
-        width_factor = np.random.uniform(self.width_factor_low, self.width_factor_high)
-        height_factor = np.random.uniform(self.height_factor_low, self.height_factor_high)
-        x_half_width = (width_factor + 0.5) * t_width
-        y_half_width = (height_factor + 0.5) * t_height
+        x_low = int(np.random.uniform(0, cpx - (self.width_factor_low + 0.5) * t_width))
+        x_high = int(np.random.uniform(cpx + (self.width_factor_low + 0.5) * t_width, image.shape[0]))
+        y_low = int(np.random.uniform(0, cpx - (self.height_factor_low + 0.5) * t_width))
+        y_high = int(np.random.uniform(cpx + (self.height_factor_low + 0.5) * t_width, image.shape[0]))
 
-        # Find the new clip for the image
-        x_low = int(cpx - x_half_width)
-        x_high = int(cpx + x_half_width + 1)
-        y_low = int(cpy - y_half_width)
-        y_high = int(cpy + y_half_width + 1)
+        # if self.width_factor_high < 0:
+        #     width_factor = np.random.uniform(self.width_factor_low, ))
+        # width_factor = np.random.uniform(self.width_factor_low, self.width_factor_high)
+        # x_half_width = (width_factor + 0.5) * t_width
+        # x_low = int(cpx - x_half_width)
+        # x_high = int(cpx + x_half_width + 1)
+        
         i_width = image.shape[1]
-        i_height = image.shape[0]
         x_low = np.clip(x_low, 0, i_width)
         x_high = np.clip(x_high, 0, i_width)
+
+
+        # height_factor = np.random.uniform(self.height_factor_low, self.height_factor_high)
+        # y_half_width = (height_factor + 0.5) * t_height
+
+        # Find the new clip for the image
+        # y_low = int(cpy - y_half_width)
+        # y_high = int(cpy + y_half_width + 1)
+        i_height = image.shape[0]
         y_low = np.clip(y_low, 0, i_height)
         y_high = np.clip(y_high, 0, i_height)
         # print(x_low, x_high, y_low, y_high)
