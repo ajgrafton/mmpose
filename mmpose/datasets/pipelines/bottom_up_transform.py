@@ -592,8 +592,8 @@ class BottomUpRandomCrop:
         # Select a random width and height
         x_low = int(np.random.uniform(0, cpx - (self.width_factor_low + 0.5) * t_width))
         x_high = int(np.random.uniform(cpx + (self.width_factor_low + 0.5) * t_width, image.shape[0]))
-        y_low = int(np.random.uniform(0, cpx - (self.height_factor_low + 0.5) * t_width))
-        y_high = int(np.random.uniform(cpx + (self.height_factor_low + 0.5) * t_width, image.shape[0]))
+        y_low = int(np.random.uniform(0, cpy - (self.height_factor_low + 0.5) * t_width))
+        y_high = int(np.random.uniform(cpy + (self.height_factor_low + 0.5) * t_width, image.shape[0]))
 
         # if self.width_factor_high < 0:
         #     width_factor = np.random.uniform(self.width_factor_low, ))
