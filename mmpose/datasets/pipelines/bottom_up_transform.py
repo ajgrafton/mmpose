@@ -583,39 +583,93 @@ class BottomUpRandomCrop:
         if np.any(joints[0, :, 2] != 2):
             return results
         
+        i_height = image.shape[0]
+        i_width = image.shape[1]
         x1, x2, y1, y2, t_width, t_height = self._torso_position(joints)
+
+        x_low_lowbound = int(x1 - self.width_factor_high * t_width)
+        x_low_highbound = int(x1 - self.width_factor_low * t_width)
+        if x_low_lowbound < 0 or self.width_factor_high < 0:
+            x_low_lowbound = 0
+        if x_low_highbound <= x_low_lowbound:
+            x_low_highbound = x_low_lowbound + 1
+
+        y_low_lowbound = int(y1 - self.height_factor_high * t_height)
+        y_low_highbound = int(y1 - self.height_factor_low * t_height)
+        if y_low_lowbound < 0 or self.height_factor_high < 0:
+            y_low_lowbound = 0
+        if y_low_highbound <= y_low_lowbound:
+            y_low_highbound = y_low_lowbound + 1
+
+        x_high_lowbound = int(x2 + self.width_factor_low * t_width)
+        x_high_highbound = int(x2 + self.width_factor_high * t_width)
+        if x_high_highbound > i_width or self.width_factor_high < 0:
+            x_high_highbound = i_width
+        if x_high_lowbound >= x_high_highbound:
+            x_high_lowbound = x_high_highbound - 1
+
+        y_high_lowbound = int(y2 + self.height_factor_low * t_height)
+        y_high_highbound = int(y2 + self.height_factor_high * t_height)
+        if y_high_highbound > i_height or self.height_factor_high < 0:
+            y_high_highbound = i_height
+        if y_high_lowbound >= y_high_highbound:
+            y_high_lowbound = y_high_highbound - 1
+
+        x_low = int(np.random.uniform(x_low_lowbound, x_low_highbound))
+        x_high = int(np.random.uniform(x_high_lowbound, x_high_highbound))
+        y_low = int(np.random.uniform(y_low_lowbound, y_low_highbound))
+        y_high = int(np.random.uniform(y_high_lowbound, y_high_highbound))
+
+        min_image_size = 10
+        if x_high - x_low < min_image_size:
+            extra = min_image_size - (x_high - x_low)
+            x_high += extra
+            if x_high > i_width:
+                x_high = i_width
+            x_low -= extra
+            if x_low < 0:
+                x_low = 0
+        if y_high - y_low < min_image_size:
+            extra = min_image_size - (y_high - y_low)
+            y_high += extra
+            if y_high > i_height:
+                y_high = i_height
+            y_low -= extra
+            if y_low < 0:
+                y_low = 0
         
         # Select a random centre point
-        cpx = int(np.random.random_integers(x1, x2))
-        cpy = int(np.random.random_integers(y1, y2))
+        # cpx = int(np.random.random_integers(x1, x2))
+        # cpy = int(np.random.random_integers(y1, y2))
 
-        # Select a random width and height
-        x_low = int(np.random.uniform(0, cpx - (self.width_factor_low + 0.5) * t_width))
-        x_high = int(np.random.uniform(cpx + (self.width_factor_low + 0.5) * t_width, image.shape[0]))
-        y_low = int(np.random.uniform(0, cpy - (self.height_factor_low + 0.5) * t_width))
-        y_high = int(np.random.uniform(cpy + (self.height_factor_low + 0.5) * t_width, image.shape[0]))
+        # # Select a random width and height
+        # # Low values are between max(0, )
+        # x_low = int(np.random.uniform(0, cpx - (self.width_factor_low + 0.5) * t_width))
+        # x_high = int(np.random.uniform(cpx + (self.width_factor_low + 0.5) * t_width, image.shape[0]))
+        # y_low = int(np.random.uniform(0, cpy - (self.height_factor_low + 0.5) * t_height))
+        # y_high = int(np.random.uniform(cpy + (self.height_factor_low + 0.5) * t_height, image.shape[0]))
 
-        # if self.width_factor_high < 0:
-        #     width_factor = np.random.uniform(self.width_factor_low, ))
-        # width_factor = np.random.uniform(self.width_factor_low, self.width_factor_high)
-        # x_half_width = (width_factor + 0.5) * t_width
-        # x_low = int(cpx - x_half_width)
-        # x_high = int(cpx + x_half_width + 1)
+        # # if self.width_factor_high < 0:
+        # #     width_factor = np.random.uniform(self.width_factor_low, ))
+        # # width_factor = np.random.uniform(self.width_factor_low, self.width_factor_high)
+        # # x_half_width = (width_factor + 0.5) * t_width
+        # # x_low = int(cpx - x_half_width)
+        # # x_high = int(cpx + x_half_width + 1)
         
-        i_width = image.shape[1]
-        x_low = np.clip(x_low, 0, i_width)
-        x_high = np.clip(x_high, 0, i_width)
+        # i_width = image.shape[1]
+        # x_low = np.clip(x_low, 0, i_width)
+        # x_high = np.clip(x_high, 0, i_width)
 
 
-        # height_factor = np.random.uniform(self.height_factor_low, self.height_factor_high)
-        # y_half_width = (height_factor + 0.5) * t_height
+        # # height_factor = np.random.uniform(self.height_factor_low, self.height_factor_high)
+        # # y_half_width = (height_factor + 0.5) * t_height
 
-        # Find the new clip for the image
-        # y_low = int(cpy - y_half_width)
-        # y_high = int(cpy + y_half_width + 1)
-        i_height = image.shape[0]
-        y_low = np.clip(y_low, 0, i_height)
-        y_high = np.clip(y_high, 0, i_height)
+        # # Find the new clip for the image
+        # # y_low = int(cpy - y_half_width)
+        # # y_high = int(cpy + y_half_width + 1)
+        # i_height = image.shape[0]
+        # y_low = np.clip(y_low, 0, i_height)
+        # y_high = np.clip(y_high, 0, i_height)
         # print(x_low, x_high, y_low, y_high)
         # print(width_factor, height_factor, x_half_width, y_half_width)
         # The new image and mask
