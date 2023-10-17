@@ -536,6 +536,31 @@ class BottomUpRandomFlip:
             'joints'] = image, mask, joints
         return results
 
+
+@PIPELINES.register_module()
+class BottomUpRandomNoise:
+    """
+    Add some random noise to the image
+    """
+
+    def __init__(self,
+                 noise_std: float):
+        self.noise_std = noise_std
+
+    def __call__(self, results):
+        image = results['img']
+        if image.dtype == np.uint8:
+            noise = np.random.normal(size=image.shape, dtype=np.float32) * self.noise_std
+            noise += image
+            noise = np.clip(noise, 0, 255).astype(np.uint8)
+            results['img'] = noise
+        else:
+            image += np.random.normal(size=image.shape) * self.noise_std
+            results['img'] = image
+        return results
+
+
+
 @PIPELINES.register_module()
 class BottomUpRandomCrop:
     """
