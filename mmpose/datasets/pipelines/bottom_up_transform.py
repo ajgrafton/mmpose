@@ -548,6 +548,8 @@ class BottomUpRandomNoise:
         self.noise_std = noise_std
 
     def __call__(self, results):
+        if self.noise_std == 0.0 or self.noise_std is None:
+            return results
         image = results['img']
         if image.dtype == np.uint8:
             noise = np.random.normal(size=image.shape, dtype=np.float32) * self.noise_std
