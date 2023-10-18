@@ -553,12 +553,13 @@ class BottomUpRandomNoise:
         image = results['img']
         if image.dtype == np.uint8:
             noise = np.random.normal(size=image.shape, dtype=np.float32) * self.noise_std
-            noise += image
+            noise += image.astype(np.float32)
             noise = np.clip(noise, 0, 255).astype(np.uint8)
             results['img'] = noise
         else:
+            original_dtype = image.dtype
             image += np.random.normal(size=image.shape) * self.noise_std
-            results['img'] = image
+            results['img'] = image.astype(original_dtype)
         return results
 
 
