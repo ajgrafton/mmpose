@@ -2,6 +2,7 @@
 import copy
 
 import torch.nn as nn
+import torch
 from mmcv.cnn import (build_conv_layer, build_norm_layer, constant_init,
                       normal_init)
 from torch.nn.modules.batchnorm import _BatchNorm
@@ -280,7 +281,10 @@ class HRNet(nn.Module):
                  norm_eval=False,
                  with_cp=False,
                  zero_init_residual=False,
-                 frozen_stages=-1):
+                 frozen_stages=-1,
+                 stage_1_noise=None,
+                 stage_2_noise=None,
+                 stage_3_noise=None):
         # Protect mutable default arguments
         norm_cfg = copy.deepcopy(norm_cfg)
         super().__init__()
@@ -291,6 +295,10 @@ class HRNet(nn.Module):
         self.with_cp = with_cp
         self.zero_init_residual = zero_init_residual
         self.frozen_stages = frozen_stages
+        self.stage_1_noise = stage_1_noise
+        self.stage_2_noise = stage_2_noise
+        self.stage_3_noise = stage_3_noise
+
 
         # stem net
         self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, 64, postfix=1)
@@ -568,6 +576,11 @@ class HRNet(nn.Module):
         x = self.relu(x)
         x = self.layer1(x)
 
+        # If necessary, add noise to x
+        if self.stage_1_noise is not None:
+            x += torch.normal(0.0, self.stage_1_noise, 
+                              size=x.shape, device=x.device)
+
         x_list = []
         for i in range(self.stage2_cfg['num_branches']):
             if self.transition1[i] is not None:
@@ -576,6 +589,13 @@ class HRNet(nn.Module):
                 x_list.append(x)
         y_list = self.stage2(x_list)
 
+        # If necessary, add noise to y_list
+        if self.stage_2_noise is not None:
+            for i in range(len(y_list)):
+                y_list[i] += torch.normal(0.0, self.stage_2_noise,
+                                          size=y_list[i].shape,
+                                          device=y_list[i].device)
+
         x_list = []
         for i in range(self.stage3_cfg['num_branches']):
             if self.transition2[i] is not None:
@@ -583,6 +603,13 @@ class HRNet(nn.Module):
             else:
                 x_list.append(y_list[i])
         y_list = self.stage3(x_list)
+
+        # If necessary, add noise to y_list
+        if self.stage_3_noise is not None:
+            for i in range(len(y_list)):
+                y_list[i] += torch.normal(0.0, self.stage_3_noise,
+                                          size=y_list[i].shape,
+                                          device=y_list[i].device)
 
         x_list = []
         for i in range(self.stage4_cfg['num_branches']):
