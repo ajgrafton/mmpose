@@ -578,8 +578,10 @@ class HRNet(nn.Module):
 
         # If necessary, add noise to x
         if self.stage_1_noise is not None:
-            x += torch.normal(0.0, self.stage_1_noise, 
-                              size=x.shape, device=x.device)
+            x_n = x + torch.normal(0.0, self.stage_1_noise, 
+                                   size=x.shape, device=x.device)
+        else:
+            x_n = x
 
         x_list = []
         for i in range(self.stage2_cfg['num_branches']):
@@ -589,12 +591,16 @@ class HRNet(nn.Module):
                 x_list.append(x)
         y_list = self.stage2(x_list)
 
+        y_list2 = []
         # If necessary, add noise to y_list
         if self.stage_2_noise is not None:
             for i in range(len(y_list)):
-                y_list[i] += torch.normal(0.0, self.stage_2_noise,
-                                          size=y_list[i].shape,
-                                          device=y_list[i].device)
+                y_list2.append(y_list[i] + torch.normal(0.0, self.stage_2_noise,
+                                           size=y_list[i].shape,
+                                           device=y_list[i].device))
+        else:
+            for i in range(len(y_list)):
+                y_list2.append(y_list[i])
 
         x_list = []
         for i in range(self.stage3_cfg['num_branches']):
@@ -605,11 +611,15 @@ class HRNet(nn.Module):
         y_list = self.stage3(x_list)
 
         # If necessary, add noise to y_list
+        y_list2 = []
         if self.stage_3_noise is not None:
             for i in range(len(y_list)):
-                y_list[i] += torch.normal(0.0, self.stage_3_noise,
-                                          size=y_list[i].shape,
-                                          device=y_list[i].device)
+                y_list2.append(y_list[i] + torch.normal(0.0, self.stage_3_noise,
+                                           size=y_list[i].shape,
+                                           device=y_list[i].device))
+        else:
+            for i in range(len(y_list)):
+                y_list2.append(y_list[i])
 
         x_list = []
         for i in range(self.stage4_cfg['num_branches']):
