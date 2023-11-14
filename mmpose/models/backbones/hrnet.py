@@ -11,7 +11,7 @@ from mmpose.utils import get_root_logger
 from ..builder import BACKBONES
 from .resnet import BasicBlock, Bottleneck, get_expansion
 from .utils import load_checkpoint
-
+import numpy as np
 
 class HRModule(nn.Module):
     """High-Resolution Module for HRNet.
@@ -284,7 +284,10 @@ class HRNet(nn.Module):
                  frozen_stages=-1,
                  stage_1_noise=None,
                  stage_2_noise=None,
-                 stage_3_noise=None):
+                 stage_3_noise=None,
+                 dropout_1=None,
+                 dropout_2=None,
+                 dropout_3=None):
         # Protect mutable default arguments
         norm_cfg = copy.deepcopy(norm_cfg)
         super().__init__()
@@ -298,7 +301,9 @@ class HRNet(nn.Module):
         self.stage_1_noise = stage_1_noise
         self.stage_2_noise = stage_2_noise
         self.stage_3_noise = stage_3_noise
-
+        self.dropout_1 = dropout_1
+        self.dropout_2 = dropout_2
+        self.dropout_3 = dropout_3
 
         # stem net
         self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, 64, postfix=1)
@@ -566,15 +571,39 @@ class HRNet(nn.Module):
         else:
             raise TypeError('pretrained must be a str or None')
 
+    def _dropout(self, x, drop_prob):
+        y = torch.zeros_like(x)
+        keep = np.random.uniform(0.0, 1.0, size=x.shape[1])
+        for i in range(keep.size):
+            if keep[i] > drop_prob:
+                y[:, i, :, :] += x[:, i, :, :]
+        return y
+
+
     def forward(self, x):
         """Forward function."""
-        x = self.conv1(x)
+        # x starts as [1 3 960 512]
+        x = self.conv1(x) # now [1 64 480 256]
         x = self.norm1(x)
         x = self.relu(x)
-        x = self.conv2(x)
+
+        # Apply first dropout
+        if self.dropout_1 is not None:
+            x = self._dropout(x, self.dropout_1)
+                
+        x = self.conv2(x) # now [1 64 240 128]
         x = self.norm2(x)
         x = self.relu(x)
-        x = self.layer1(x)
+
+        # Apply second dropout
+        if self.dropout_2 is not None:
+            x = self._dropout(x, self.dropout_2)
+
+        x = self.layer1(x) # now [1 256 240 128]
+
+        # Apply third dropout
+        if self.dropout_3 is not None:
+            x = self._dropout(x, self.dropout_3)
 
         # If necessary, add noise to x
         if self.stage_1_noise is not None:
