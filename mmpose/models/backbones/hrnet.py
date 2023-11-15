@@ -301,9 +301,16 @@ class HRNet(nn.Module):
         self.stage_1_noise = stage_1_noise
         self.stage_2_noise = stage_2_noise
         self.stage_3_noise = stage_3_noise
-        self.dropout_1 = dropout_1
-        self.dropout_2 = dropout_2
-        self.dropout_3 = dropout_3
+
+        self.dropout_1 = None
+        self.dropout_2 = None
+        self.dropout_3 = None
+        if dropout_1 is not None:
+            self.dropout_1 = torch.nn.Dropout(dropout_1)
+        if dropout_2 is not None:
+            self.dropout_2 = torch.nn.Dropout(dropout_2)
+        if dropout_3 is not None:
+            self.dropout_3 = torch.nn.Dropout(dropout_3)
 
         # stem net
         self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, 64, postfix=1)
@@ -571,13 +578,13 @@ class HRNet(nn.Module):
         else:
             raise TypeError('pretrained must be a str or None')
 
-    def _dropout(self, x, drop_prob):
-        y = torch.zeros_like(x)
-        keep = np.random.uniform(0.0, 1.0, size=x.shape[1])
-        for i in range(keep.size):
-            if keep[i] > drop_prob:
-                y[:, i, :, :] += x[:, i, :, :]
-        return y
+    # def _dropout(self, x, drop_prob):
+    #     y = torch.zeros_like(x)
+    #     keep = np.random.uniform(0.0, 1.0, size=x.shape[1])
+    #     for i in range(keep.size):
+    #         if keep[i] > drop_prob:
+    #             y[:, i, :, :] = x[:, i, :, :]
+    #     return y
 
 
     def forward(self, x):
@@ -589,7 +596,7 @@ class HRNet(nn.Module):
 
         # Apply first dropout
         if self.dropout_1 is not None:
-            x = self._dropout(x, self.dropout_1)
+            x = self.dropout_1(x)
                 
         x = self.conv2(x) # now [1 64 240 128]
         x = self.norm2(x)
@@ -597,13 +604,13 @@ class HRNet(nn.Module):
 
         # Apply second dropout
         if self.dropout_2 is not None:
-            x = self._dropout(x, self.dropout_2)
+            x = self.dropout_2(x)
 
         x = self.layer1(x) # now [1 256 240 128]
 
         # Apply third dropout
         if self.dropout_3 is not None:
-            x = self._dropout(x, self.dropout_3)
+            x = self.dropout_3(x)
 
         # If necessary, add noise to x
         if self.stage_1_noise is not None:
