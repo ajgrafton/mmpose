@@ -563,6 +563,35 @@ class BottomUpRandomNoise:
         return results
 
 
+@PIPELINES.register_module()
+class BottomUpRandomHipBlock:
+    """
+    Randomly blocks an area of the hips
+    """
+    def __init__(self):
+        pass
+
+    def __call__(self, results):
+        image, mask, joints = results['img'], results['mask'], results['joints']
+        n_images = len(mask)
+        joints = joints[0]
+        mask = mask[0]
+        n_people = joints.shape[0]
+        if n_people != 1:
+            return results
+        joints = np.asarray(joints)
+        if np.any(joints[0, :, 2] != 2):
+            return results
+        
+        # Do the processing in here!
+
+        joints = [joints.copy() for _ in range(n_images)]
+        mask = [mask.copy() for _ in range(n_images)]
+        results['img'] = image
+        results['joints'] = joints
+        results['mask'] = mask
+        return results
+
 
 @PIPELINES.register_module()
 class BottomUpRandomCrop:
