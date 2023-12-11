@@ -7,6 +7,7 @@ import numpy as np
 
 from mmpose.core.post_processing import (get_affine_transform, get_warp_matrix,
                                          warp_affine_joints)
+from typing import Tuple
 from mmpose.datasets.builder import PIPELINES
 from .shared_transform import Compose
 
@@ -568,8 +569,87 @@ class BottomUpRandomHipBlock:
     """
     Randomly blocks an area of the hips
     """
-    def __init__(self):
-        pass
+    def __init__(self,
+                 proportion_low: float,
+                 proportion_high: float,
+                 max_rotation_angle_degrees: float,
+                 mask_probability: float):
+        self.proportion_low = proportion_low
+        self.proportion_high = proportion_high
+        self.prop_scale = self.proportion_high - self.proportion_low
+        self.max_rotation_angle = max_rotation_angle_degrees * np.pi / 180.0
+        self.mask_probability = mask_probability
+        self.rng = np.random.default_rng(12345)
+
+    def _select_spine_point(self, mid_shoulder_x, mid_shoulder_y, mid_hip_x, mid_hip_y) -> Tuple[float, float]:
+        """
+        Calculates the point along the spine for the mask
+        """
+        # Find the hip -> shoulder direction
+        dx = mid_shoulder_x - mid_hip_x
+        dy = mid_shoulder_y - mid_hip_y
+        
+        # Choose how far along to put the mask
+        fraction = self.proportion_low + self.prop_scale * self.rng.uniform(0.0, 1.0)
+
+        # Calculate the origin point 
+        origin_x = mid_hip_x + dx * fraction
+        origin_y = mid_hip_y + dy * fraction
+        return origin_x, origin_y
+
+    def _select_rotation_angle(self, mid_shoulder_x, mid_shoulder_y, mid_hip_x, mid_hip_y) -> float:
+        """
+        Calculates the angle to rotate the mask to (don't forget to account for the angle of the spine)
+        """
+        # Calculate the spine angle
+        spine_dx = mid_shoulder_x - mid_hip_x
+        spine_dy = mid_shoulder_y - mid_hip_y
+        spine_angle = np.arctan2(spine_dx, -spine_dy)  # negative means \, positive means /
+
+        # Add on a random angle
+        mask_angle = spine_angle + self.rng.uniform(-self.max_rotation_angle, self.max_rotation_angle)
+        
+        return mask_angle
+        
+    def _draw_mask(self, image: np.ndarray, mask_origin_x, mask_origin_y, mask_angle) -> np.ndarray:
+        """
+        Draws the mask (modifies the image in-place)
+        """
+        tan_angle = np.tan(mask_angle)
+
+        # Iterate through each vertical column
+        for c in range(image.shape[1]):
+            
+            # Calculate the start of the mask index
+            index = int(mask_origin_y + tan_angle * (c - mask_origin_x))
+            if index < 0:
+                index = 0
+            if index > image.shape[1]:
+                continue
+
+            image[index:, c, :] = 0
+        return image
+    
+    def _check_if_should_draw_mask(self, mid_shoulder_x, mid_shoulder_y, mid_hip_x, mid_hip_y) -> bool:
+        """
+        Checks if the joints are laid out properly so that it's ok to do the mask
+        """
+        # Roll the mask probability dice
+        if self.rng.uniform(low=0.0, high=1.0) > self.mask_probability:
+            return False
+        
+        # Check that shoulders are above hips
+        dx = mid_hip_x - mid_shoulder_x
+        dy = mid_hip_y - mid_shoulder_y
+        if dy < 0:
+            return False
+        
+        # Check that the baby isn't approximately horizontal (but still with the shoulders
+        # slightly above the hips)
+        if np.abs(dy) < np.abs(dx):
+            return False
+        
+        return True
 
     def __call__(self, results):
         image, mask, joints = results['img'], results['mask'], results['joints']
@@ -580,10 +660,28 @@ class BottomUpRandomHipBlock:
         if n_people != 1:
             return results
         joints = np.asarray(joints)
-        if np.any(joints[0, :, 2] != 2):
+        if np.any(joints[0, :, 2] == 0):
             return results
         
-        # Do the processing in here!
+        # Extract the hip and shoulder locations
+        mid_shoulder_x = 0.5 * (joints[0, 0, 0] + joints[0, 1, 0])
+        mid_shoulder_y = 0.5 * (joints[0, 0, 1] + joints[0, 1, 1])
+        mid_hip_x = 0.5 * (joints[0, 2, 0] + joints[0, 3, 0])
+        mid_hip_y = 0.5 * (joints[0, 2, 1] + joints[0, 3, 1])
+
+        # Check mask probability
+        if not self._check_if_should_draw_mask(mid_shoulder_x, mid_shoulder_y, 
+                                               mid_hip_x, mid_hip_y):
+            return results
+
+        # Choose the mask origin and angle
+        origin_x, origin_y = self._select_spine_point(mid_shoulder_x, mid_shoulder_y, 
+                                                      mid_hip_x, mid_hip_y)
+        mask_angle = self._select_rotation_angle(mid_shoulder_x, mid_shoulder_y,
+                                                  mid_hip_x, mid_hip_y)
+
+        # Draw the mask
+        self._draw_mask(image, origin_x, origin_y, mask_angle)        
 
         joints = [joints.copy() for _ in range(n_images)]
         mask = [mask.copy() for _ in range(n_images)]
