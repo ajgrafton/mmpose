@@ -262,12 +262,13 @@ class AssociativeEmbedding(BasePose):
 
                 heatmaps_flipped = flip_feature_maps(
                     heatmaps_flipped, flip_index=img_metas['flip_index'])
-                if self.test_cfg['tag_per_joint']:
-                    tags_flipped = flip_feature_maps(
-                        tags_flipped, flip_index=img_metas['flip_index'])
-                else:
-                    tags_flipped = flip_feature_maps(
-                        tags_flipped, flip_index=None, flip_output=True)
+                if tags and tags[0].size()[1] > 0: 
+                    if self.test_cfg['tag_per_joint']:
+                        tags_flipped = flip_feature_maps(
+                            tags_flipped, flip_index=img_metas['flip_index'])
+                    else:
+                        tags_flipped = flip_feature_maps(
+                            tags_flipped, flip_index=None)  #, flip_output=True)
 
             else:
                 heatmaps_flipped = None
@@ -283,17 +284,18 @@ class AssociativeEmbedding(BasePose):
                 aggregate_stage='average',
                 aggregate_flip='average')
 
-            aggregated_tags = aggregate_stage_flip(
-                tags,
-                tags_flipped,
-                index=-1,
-                project2image=self.test_cfg['project2image'],
-                size_projected=base_size,
-                align_corners=self.test_cfg.get('align_corners', True),
-                aggregate_stage='concat',
-                aggregate_flip='concat')
+            if tags and tags[0].size()[1] > 0:
+                aggregated_tags = aggregate_stage_flip(
+                    tags,
+                    tags_flipped,
+                    index=-1,
+                    project2image=self.test_cfg['project2image'],
+                    size_projected=base_size,
+                    align_corners=self.test_cfg.get('align_corners', True),
+                    aggregate_stage='concat',
+                    aggregate_flip='concat')
 
-            if s == 1 or len(test_scale_factor) == 1:
+            if (s == 1 or len(test_scale_factor) == 1) and tags and tags[0].size()[1] > 0:
                 if isinstance(aggregated_tags, list):
                     scale_tags_list.extend(aggregated_tags)
                 else:
@@ -309,37 +311,41 @@ class AssociativeEmbedding(BasePose):
             align_corners=self.test_cfg.get('align_corners', True),
             aggregate_scale='average')
 
-        aggregated_tags = aggregate_scale(
-            scale_tags_list,
-            align_corners=self.test_cfg.get('align_corners', True),
-            aggregate_scale='unsqueeze_concat')
-
         heatmap_size = aggregated_heatmaps.shape[2:4]
-        tag_size = aggregated_tags.shape[2:4]
-        if heatmap_size != tag_size:
-            tmp = []
-            for idx in range(aggregated_tags.shape[-1]):
-                tmp.append(
-                    torch.nn.functional.interpolate(
-                        aggregated_tags[..., idx],
-                        size=heatmap_size,
-                        mode='bilinear',
-                        align_corners=self.test_cfg.get('align_corners',
-                                                        True)).unsqueeze(-1))
-            aggregated_tags = torch.cat(tmp, dim=-1)
+        if tags and tags[0].size()[1] > 0:
+            aggregated_tags = aggregate_scale(
+                scale_tags_list,
+                align_corners=self.test_cfg.get('align_corners', True),
+                aggregate_scale='unsqueeze_concat')
+            tag_size = aggregated_tags.shape[2:4]
+
+            if heatmap_size != tag_size:
+                tmp = []
+                for idx in range(aggregated_tags.shape[-1]):
+                    tmp.append(
+                        torch.nn.functional.interpolate(
+                            aggregated_tags[..., idx],
+                            size=heatmap_size,
+                            mode='bilinear',
+                            align_corners=self.test_cfg.get('align_corners',
+                                                            True)).unsqueeze(-1))
+                aggregated_tags = torch.cat(tmp, dim=-1)
 
         # perform grouping
-        grouped, scores = self.parser.parse(aggregated_heatmaps,
-                                            aggregated_tags,
-                                            self.test_cfg['adjust'],
-                                            self.test_cfg['refine'])
+            grouped, scores = self.parser.parse(aggregated_heatmaps,
+                                                aggregated_tags,
+                                                self.test_cfg['adjust'],
+                                                self.test_cfg['refine'])
 
-        preds = get_group_preds(
-            grouped,
-            center,
-            scale, [aggregated_heatmaps.size(3),
-                    aggregated_heatmaps.size(2)],
-            use_udp=self.use_udp)
+            preds = get_group_preds(
+                grouped,
+                center,
+                scale, [aggregated_heatmaps.size(3),
+                        aggregated_heatmaps.size(2)],
+                use_udp=self.use_udp)
+        else:
+            preds = []
+            scores = []
 
         image_paths = []
         image_paths.append(img_metas['image_file'])
