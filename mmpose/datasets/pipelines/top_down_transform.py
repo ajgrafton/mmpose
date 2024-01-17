@@ -57,6 +57,52 @@ class TopDownGetBboxCenterScale:
 
 
 @PIPELINES.register_module()
+class TopDownMakeBboxFullImage:
+    """Convert bbox from [x, y, w, h] to center and scale.
+
+    The center is the coordinates of the bbox center, and the scale is the
+    bbox width and height normalized by a scale factor.
+
+    Required key: 'bbox', 'ann_info'
+
+    Modifies key: 'center', 'scale'
+
+    Args:
+        padding (float): bbox padding scale that will be multilied to scale.
+            Default: 1.25
+    """
+    # Pixel std is 200.0, which serves as the normalization factor to
+    # to calculate bbox scales.
+    pixel_std: float = 200.0
+
+    def __init__(self, padding: float = 1.25):
+        self.padding = padding
+
+    def __call__(self, results):
+
+        if 'center' in results and 'scale' in results:
+            warnings.warn(
+                'Use the "center" and "scale" that already exist in the data '
+                'sample. The padding will still be applied.')
+            results['scale'] *= self.padding
+        else:
+            bbox = results['bbox']
+            image_size = results['ann_info']['image_size']
+            aspect_ratio = image_size[0] / image_size[1]
+            bbox = [0, 0, image_size[0], image_size[1]]
+            results['bbox'] = bbox
+
+            center, scale = bbox_xywh2cs(
+                bbox,
+                aspect_ratio=aspect_ratio,
+                padding=self.padding,
+                pixel_std=self.pixel_std)
+
+            results['center'] = center
+            results['scale'] = scale
+        return results
+
+@PIPELINES.register_module()
 class TopDownRandomShiftBboxCenter:
     """Random shift the bbox center.
 
