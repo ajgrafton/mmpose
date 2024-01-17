@@ -80,26 +80,20 @@ class TopDownMakeBboxFullImage:
 
     def __call__(self, results):
 
-        if 'center' in results and 'scale' in results:
-            warnings.warn(
-                'Use the "center" and "scale" that already exist in the data '
-                'sample. The padding will still be applied.')
-            results['scale'] *= self.padding
-        else:
-            bbox = results['bbox']
-            image_size = results['ann_info']['image_size']
-            aspect_ratio = image_size[0] / image_size[1]
-            bbox = [0, 0, image_size[0], image_size[1]]
-            results['bbox'] = bbox
+        bbox = results['bbox']
+        image_size = results['ann_info']['image_size']
+        aspect_ratio = image_size[0] / image_size[1]
+        bbox = [0, 0, image_size[0], image_size[1]]
+        results['bbox'] = bbox
 
-            center, scale = bbox_xywh2cs(
-                bbox,
-                aspect_ratio=aspect_ratio,
-                padding=self.padding,
-                pixel_std=self.pixel_std)
+        center, scale = bbox_xywh2cs(
+            bbox,
+            aspect_ratio=aspect_ratio,
+            padding=self.padding,
+            pixel_std=self.pixel_std)
 
-            results['center'] = center
-            results['scale'] = scale
+        results['center'] = center
+        results['scale'] = scale
         return results
 
 @PIPELINES.register_module()
