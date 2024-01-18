@@ -80,10 +80,10 @@ class TopDownMakeBboxFullImage:
 
     def __call__(self, results):
 
-        bbox = results['bbox']
+        # bbox = results['bbox']
         image_size = results['ann_info']['image_size']
         aspect_ratio = image_size[0] / image_size[1]
-        bbox = [0, 0, image_size[0], image_size[1]]
+        bbox = [0, 0, results['img'].shape[1], results['img'].shape[0]]
         results['bbox'] = bbox
 
         center, scale = bbox_xywh2cs(
