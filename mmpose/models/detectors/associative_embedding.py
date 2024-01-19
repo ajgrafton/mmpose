@@ -90,6 +90,7 @@ class AssociativeEmbedding(BasePose):
                 img_metas=None,
                 return_loss=True,
                 return_heatmap=False,
+                return_maxima=False,
                 **kwargs):
         """Calls either forward_train or forward_test depending on whether
         return_loss is True.
@@ -135,7 +136,8 @@ class AssociativeEmbedding(BasePose):
             return self.forward_train(img, targets, masks, joints, img_metas,
                                       **kwargs)
         return self.forward_test(
-            img, img_metas, return_heatmap=return_heatmap, **kwargs)
+            img, img_metas, return_heatmap=return_heatmap, 
+            return_maxima=return_maxima, **kwargs)
 
     def forward_train(self, img, targets, masks, joints, img_metas, **kwargs):
         """Forward the bottom-up model and calculate the loss.
@@ -201,7 +203,7 @@ class AssociativeEmbedding(BasePose):
             output = self.keypoint_head(output)
         return output
 
-    def forward_test(self, img, img_metas, return_heatmap=False, **kwargs):
+    def forward_test(self, img, img_metas, return_heatmap=False, return_maxima=False, **kwargs):
         """Inference the bottom-up model.
 
         Note:
@@ -218,6 +220,9 @@ class AssociativeEmbedding(BasePose):
             center (np.ndarray): center of image
             scale (np.ndarray): the scale of image
         """
+        if img.size(0) != 1:
+            print(img.size())
+            print(img_metas)
         assert img.size(0) == 1
         assert len(img_metas) == 1
 
@@ -355,10 +360,17 @@ class AssociativeEmbedding(BasePose):
         else:
             output_heatmap = None
 
+        if return_maxima:
+            # TODO Calculate the maxima here
+            output_maxima = None
+        else:
+            output_maxima = None
+
         result['preds'] = preds
         result['scores'] = scores
         result['image_paths'] = image_paths
         result['output_heatmap'] = output_heatmap
+        result['output_maxima'] = output_maxima
 
         return result
 
