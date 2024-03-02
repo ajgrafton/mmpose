@@ -209,8 +209,8 @@ model = dict(
     ),
 )
 data_cfg = dict(
-    image_size=[864, 1152],
-    heatmap_size=[216, 288],
+    image_size=[224, 288],
+    heatmap_size=[56, 72],
     num_output_channels=4,
     num_joints=4,
     dataset_channel=[[5, 6, 11, 12]],
@@ -296,8 +296,8 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=24,
-    workers_per_gpu=2,
+    samples_per_gpu=2,
+    workers_per_gpu=1,
     val_dataloader=dict(samples_per_gpu=24),
     test_dataloader=dict(samples_per_gpu=24),
     train=dict(
