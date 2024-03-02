@@ -44,17 +44,20 @@ class MultiTopDown(BasePose):
         super().__init__()
         self.fp16_enabled = False
         self.models = []
+        self.model_slices = []
+        current_channel = 0
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
 
         self.num_models = len(backbones)
         for i in range(self.num_models):
             backbone_i = backbones[i]
-            neck_i = None
-            if necks is not None:
-                neck_i = builder.build_neck(necks[i])
+            # neck_i = None
+            # if necks is not None:
+                # neck_i = builder.build_neck(necks[i])
 
             model_i = builder.build_backbone(backbone_i)
+            num_channels_i = backbone_i['in_channels']
 
             pretrained_i = None
             if pretrained is not None:
@@ -65,7 +68,10 @@ class MultiTopDown(BasePose):
             #     backbone_i, neck_i, None, train_cfg, test_cfg, pretrained_i, loss_pose
             # )
             # model_i.init_weights(None)
+            self.model_slices.append(slice(current_channel, current_channel + num_channels_i))
+            model_i = model_i.to('cuda')
             self.models.append(model_i)
+            current_channel += num_channels_i
 
         keypoint_head["train_cfg"] = train_cfg
         keypoint_head["test_cfg"] = test_cfg
@@ -90,7 +96,8 @@ class MultiTopDown(BasePose):
 
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
         # Get the outputs for the backbones
-        output = [self.models[i](img[i]) for i in range(self.num_models)]
+        sub_images = [img[:, model_slice, ...] for model_slice in self.model_slices]
+        output = [self.models[i](sub_images[i]) for i in range(self.num_models)]
 
         # Stack the outputs
         output = [
@@ -111,13 +118,14 @@ class MultiTopDown(BasePose):
 
     def forward_test(self, img, img_metas, return_heatmap=False, **kwargs):
         assert len(img) == len(img_metas)
-        batch_size, _, img_height, img_width = img[0].shape
-        assert len(img) == self.num_models
+        sub_images = [img[:, model_slice, ...] for model_slice in self.model_slices]
+        batch_size, _, img_height, img_width = sub_images[0].shape
+        # assert len(sub_images) == self.num_models
         if batch_size > 1:
             assert "bbox_id" in img_metas[0]
 
         result = {}
-        features = [self.models[i](img[i]) for i in range(self.num_models)]
+        features = [self.models[i](sub_images[i]) for i in range(self.num_models)]
 
         # Stack the outputs
         features = [
@@ -126,16 +134,11 @@ class MultiTopDown(BasePose):
         ]
         output_heatmap = self.head.inference_model(features, flip_pairs=None)
 
-        # features: List[torch.Tensor] = [
-        #     self.models[i](img[i]) for i in range(num_models)
-        # ]
-        # features = torch.cat(features, dim=0)
-        # output_heatmap = self.head.inference_model(features, flip_pairs=None)
-
         if self.test_cfg.get("flip_test", True):
             img_flipped = img.flip(4)
+            sub_images_flipped = [img_flipped[:, model_slice, ...] for model_slice in self.model_slices]
             features_flipped = [
-                self.models[i](img_flipped[i]) for i in range(self.num_models)
+                self.models[i](sub_images_flipped[i]) for i in range(self.num_models)
             ]
 
             # Stack the outputs
