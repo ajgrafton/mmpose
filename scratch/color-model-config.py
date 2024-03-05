@@ -83,116 +83,46 @@ channel_cfg = dict(
     inference_channel=[5, 6, 11, 12],
 )
 model = dict(
-    type="MultiTopDown",
+    type="TopDown",
     pretrained=None,
     # pretrained="/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-work/pretrained/td_torso_model.pth",
-    backbones=[
-        dict(
-            type="HRNet",
-            in_channels=3,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
+    backbone=dict(
+        type="HRNet",
+        in_channels=3,
+        extra=dict(
+            stage1=dict(
+                num_modules=1,
+                num_branches=1,
+                block="BOTTLENECK",
+                num_blocks=(4,),
+                num_channels=(64,),
+            ),
+            stage2=dict(
+                num_modules=1,
+                num_branches=2,
+                block="BASIC",
+                num_blocks=(4, 4),
+                num_channels=(32, 64),
+            ),
+            stage3=dict(
+                num_modules=4,
+                num_branches=3,
+                block="BASIC",
+                num_blocks=(4, 4, 4),
+                num_channels=(32, 64, 128),
+            ),
+            stage4=dict(
+                num_modules=3,
+                num_branches=4,
+                block="BASIC",
+                num_blocks=(4, 4, 4, 4),
+                num_channels=(32, 64, 128, 256),
             ),
         ),
-        dict(
-            type="HRNet",
-            in_channels=1,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
-            ),
-        ),
-        dict(
-            type="HRNet",
-            in_channels=1,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
-            ),
-        ),
-    ],
+    ),
     keypoint_head=dict(
         type="TopdownHeatmapSimpleHead",
-        in_channels=96,
+        in_channels=32,
         out_channels=4,
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1),
@@ -224,10 +154,6 @@ data_cfg = dict(
     use_nms=False,
     bbox_file="/Users/alex/dev/topdown/jsons/example-json.json",
 )
-
-img_mean = [0.485, 0.456, 0.406, 0.449, 0.449]
-img_std = [0.229, 0.224, 0.225, 0.226, 0.226]
-
 train_pipeline = [
     dict(type="LoadImageFromMeerkat"),
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
@@ -237,7 +163,7 @@ train_pipeline = [
     dict(type="TopDownGetRandomScaleRotation", rot_factor=40, scale_factor=0.5),
     dict(type="TopDownAffine", use_udp=True),
     dict(type="ToTensor"),
-    dict(type="NormalizeTensor", mean=img_mean, std=img_std),
+    dict(type="NormalizeTensor", mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     dict(
         type="TopDownGenerateTarget",
         sigma=3,
@@ -259,14 +185,12 @@ train_pipeline = [
         ],
     ),
 ]
-
-
 val_pipeline = [
     dict(type="LoadImageFromMeerkat"),
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
     dict(type="TopDownAffine", use_udp=True),
     dict(type="ToTensor"),
-    dict(type="NormalizeTensor", mean=img_mean, std=img_std),
+    dict(type="NormalizeTensor", mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     dict(
         type="Collect",
         keys=["img"],
@@ -286,7 +210,7 @@ test_pipeline = [
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
     dict(type="TopDownAffine", use_udp=True),
     dict(type="ToTensor"),
-    dict(type="NormalizeTensor", mean=img_mean, std=img_std),
+    dict(type="NormalizeTensor", mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     dict(
         type="Collect",
         keys=["img"],
