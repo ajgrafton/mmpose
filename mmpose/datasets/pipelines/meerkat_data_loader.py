@@ -1,3 +1,5 @@
+import os.path
+
 import mmcv
 import numpy as np
 import pickle
@@ -94,6 +96,14 @@ class LoadMultipleImagesFromMeerkat:
 
     def _read_image(self, path: str):
         individual_files = path.split("::")
+        # The dataloader automatically applies a directory prefix to the start of the image file.
+        # We need to get the prefix from the first file, and apply it to the others
+        source_folder = os.path.dirname(individual_files[0])
+        for i in range(1, len(individual_files)):
+            individual_files[i] = os.path.join(
+                source_folder, os.path.basename(individual_files[i])
+            )
+
         images = [
             self._reader.load_image(
                 file_name,
