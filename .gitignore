@@ -131,3 +131,7 @@ docs/**/modelzoo.md
 *.pth
 
 *.DS_Store
+
+scratch/test-multi-archives/
+
+scratch/test-multi-annotations.json

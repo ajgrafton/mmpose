@@ -1,5 +1,4 @@
 import os.path
-
 import mmcv
 import numpy as np
 import pickle
