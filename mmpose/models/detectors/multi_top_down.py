@@ -58,11 +58,11 @@ class MultiTopDown(BasePose):
 
             model_i = builder.build_backbone(backbone_i)
             num_channels_i = backbone_i["in_channels"]
-
-            pretrained_i = None
-            if pretrained is not None:
-                pretrained_i = pretrained[i]
-            model_i.init_weights(pretrained_i)
+            prefix = f"models.{i}."
+            # pretrained_i = None
+            # if pretrained is not None:
+            # pretrained_i = pretrained[i]
+            model_i.init_weights(pretrained, override_prefix=prefix)
 
             # model_i = TopDown(
             #     backbone_i, neck_i, None, train_cfg, test_cfg, pretrained_i, loss_pose
@@ -88,7 +88,7 @@ class MultiTopDown(BasePose):
         img_metas=None,
         return_loss=True,
         return_heatmap=False,
-        **kwargs
+        **kwargs,
     ):
         if return_loss:
             return self.forward_train(img, target, target_weight, img_metas, **kwargs)
