@@ -135,3 +135,5 @@ docs/**/modelzoo.md
 scratch/test-multi-archives/
 
 scratch/test-multi-annotations.json
+
+scratch/test_archive

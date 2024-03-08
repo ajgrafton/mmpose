@@ -83,7 +83,8 @@ channel_cfg = dict(
     inference_channel=[5, 6, 11, 12],
 )
 model = dict(
-    type="MultiTopDown",
+    type="TopDownLateFusion",
+    color_index=0,
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
     backbones=[
         dict(
@@ -191,7 +192,7 @@ model = dict(
     ],
     keypoint_head=dict(
         type="TopdownHeatmapSimpleHead",
-        in_channels=96,
+        in_channels=32,
         out_channels=4,
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1),

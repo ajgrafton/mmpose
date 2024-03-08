@@ -11,6 +11,7 @@ from .pose_lifter import PoseLifter
 from .posewarper import PoseWarper
 from .top_down import TopDown
 from .multi_top_down import MultiTopDown
+from .top_down_late_fusion import TopDownLateFusion
 
 __all__ = [
     "TopDown",
@@ -27,4 +28,5 @@ __all__ = [
     "GestureRecognizer",
     "DisentangledKeypointRegressor",
     "MultiTopDown",
+    "TopDownLateFusion",
 ]
