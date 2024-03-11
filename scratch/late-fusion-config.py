@@ -84,8 +84,9 @@ channel_cfg = dict(
 )
 model = dict(
     type="TopDownLateFusion",
-    color_index=0,
+    selector_indices=[0, 1, 2],
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
+    selector=dict(type="ResNet", depth=18, in_channels=3),
     backbones=[
         dict(
             type="HRNet",
@@ -200,7 +201,7 @@ model = dict(
     ),
     train_cfg=dict(),
     test_cfg=dict(
-        flip_test=False,
+        flip_test=True,
         post_process="default",
         shift_heatmap=False,
         target_type="GaussianHeatmap",

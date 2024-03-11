@@ -20,6 +20,8 @@ new_image[..., :3] = images[0]
 new_image[..., 3] = images[1]
 new_image[..., 4] = images[2]
 
-model = init_pose_model(config_file, device="cpu")
+model = init_pose_model(
+    config_file, "/Users/alex/dev/mmpose-old/scratch/multi-model.pth", device="cpu"
+)
 result = inference_top_down_pose_model(model, new_image)
 print(result)

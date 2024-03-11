@@ -33,7 +33,8 @@ class TopDownLateFusion(BasePose):
 
     def __init__(
         self,
-        color_index,
+        selector_indices,
+        selector,
         backbones,
         keypoint_head,
         train_cfg=None,
@@ -44,12 +45,12 @@ class TopDownLateFusion(BasePose):
         self.fp16_enabled = False
         self.models = torch.nn.ModuleList()
         self.model_slices = []
-        self.fusion_selector_backbone = ResNet(18, in_channels=3)
+        self.fusion_selector_backbone = builder.build_backbone(selector)
         self.fusion_selector_head = self.make_selector_head()
         current_channel = 0
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
-        self.color_index = color_index
+        self.selector_indices = selector_indices
 
         self.num_models = len(backbones)
         for i in range(self.num_models):
@@ -95,18 +96,64 @@ class TopDownLateFusion(BasePose):
             img, img_metas, return_heatmap=return_heatmap, **kwargs
         )
 
+    def apply_late_fusion(
+        self, img: torch.Tensor, features: List[torch.Tensor]
+    ) -> torch.Tensor:
+        """
+        Runs the image through the fusion selector backbone and head, then uses
+        the results to fuse the features
+        Args:
+            img: Input image
+            features: List of outputs from each backbone
+
+        Returns: Features after fusion
+        """
+
+        # Run the image through the head and backbone, using only the channels
+        # relevant for the fusion selection, as specified by self.selector_indices
+        # in the config.
+        backbone_result = self.fusion_selector_backbone(
+            img[:, self.selector_indices, ...]
+        )
+        fusion_result = self.fusion_selector_head(backbone_result)
+
+        # Reshape the fusion result so that it can be applied to the features tensor:
+        # [num models x num images x num feature maps x height x width
+        fusion_result = fusion_result.reshape([self.num_models, 1, 1, 1, 1])
+
+        # Stack up the features and use the fusion results as a weighed sum
+        stacked_features = torch.stack(features, dim=0)
+        fused_features = torch.sum(
+            stacked_features * fusion_result, dim=0, keepdim=False
+        )
+        return fused_features
+
+    def divide_into_sub_images(self, img: torch.Tensor) -> List[torch.Tensor]:
+        """
+        Divides the input image into sub-images for each backbone
+        Args:
+            img: Input image
+
+        Returns: List of sub-images for each backbone (List[Tensor])
+
+        """
+        sub_images = [img[:, model_slice, ...] for model_slice in self.model_slices]
+        return sub_images
+
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
         # Get the outputs for the backbones
-        sub_images = [img[:, model_slice, ...] for model_slice in self.model_slices]
-        output = [self.models[i](sub_images[i]) for i in range(self.num_models)]
+        sub_images = self.divide_into_sub_images(img)
+        # sub_images = [img[:, model_slice, ...] for model_slice in self.model_slices]
+        features = [self.models[i](sub_images[i])[0] for i in range(self.num_models)]
 
         # Stack the outputs
-        output = [
-            torch.cat([op[i] for op in output], dim=1) for i in range(len(output[0]))
-        ]
+        # output = [
+        #     torch.cat([op[i] for op in output], dim=1) for i in range(len(output[0]))
+        # ]
+        fused_features = self.apply_late_fusion(img, features)
 
         # Run through the head
-        output = self.keypoint_head(output)
+        output = self.keypoint_head(fused_features)
 
         # Get the losses
         losses = dict()
@@ -121,62 +168,45 @@ class TopDownLateFusion(BasePose):
 
     def forward_test(self, img, img_metas, return_heatmap=False, **kwargs):
         assert len(img) == len(img_metas)
-        sub_images = [img[:, model_slice, ...] for model_slice in self.model_slices]
+        sub_images = self.divide_into_sub_images(img)
         batch_size, _, img_height, img_width = sub_images[0].shape
-        # assert len(sub_images) == self.num_models
         if batch_size > 1:
             assert "bbox_id" in img_metas[0]
 
         result = {}
-        features = torch.stack(
-            [self.models[i](sub_images[i])[0] for i in range(self.num_models)], dim=0
-        )
 
-        # Run the fusion backbone
-        color_img = sub_images[self.color_index]
-        fusion_backbone_result = self.fusion_selector_backbone(color_img)
-        fusion_result = self.fusion_selector_head(fusion_backbone_result).reshape(
-            [3, 1, 1, 1, 1]
-        )
-        features = torch.sum(features * fusion_result, dim=0, keepdim=False)
+        # Run backbones
+        features = [self.models[i](sub_images[i])[0] for i in range(self.num_models)]
 
-        # features = [
-        #     torch.cat([op[i] for op in features], dim=1)
-        #     for i in range(len(features[0]))
-        # ]
-        output_heatmap = self.keypoint_head.inference_model(features, flip_pairs=None)
+        # Run fusion
+        fused_features = self.apply_late_fusion(img, features)
+
+        # Run keypoint head
+        output_heatmap = self.keypoint_head.inference_model(
+            fused_features, flip_pairs=None
+        )
 
         if self.test_cfg.get("flip_test", True):
-            img_flipped = img.flip(4)
-            sub_images_flipped = [
-                img_flipped[:, model_slice, ...] for model_slice in self.model_slices
+            # Flip the image
+            img_flipped = img.flip(3)
+            sub_images_flipped = self.divide_into_sub_images(img_flipped)
+
+            # Run backbones
+            features_flipped = [
+                self.models[i](sub_images_flipped[i])[0] for i in range(self.num_models)
             ]
-            features_flipped = torch.stack(
-                [
-                    self.models[i](sub_images_flipped[i])[0]
-                    for i in range(self.num_models)
-                ],
-                dim=4,
-            )
-            color_img_flipped = sub_images_flipped[self.color_index]
-            fusion_backbone_result_flipped = self.fusion_selector_backbone(
-                color_img_flipped
-            )
-            fusion_result_flipped = self.fusion_selector_head(
-                fusion_backbone_result_flipped
-            ).reshape([3, 1, 1, 1, 1])
-            features_flipped = torch.sum(
-                features_flipped * fusion_result_flipped, dim=0, keepdim=False
+
+            # Run fusion
+            fused_features_flipped = self.apply_late_fusion(
+                img_flipped, features_flipped
             )
 
-            # Stack the outputs
-            # features_flipped = [
-            #     torch.cat([op[i] for op in features_flipped], dim=0)
-            #     for i in range(len(features_flipped[0]))
-            # ]
+            # Run keypoint head
             output_flipped_heatmap = self.keypoint_head.inference_model(
-                features_flipped, img_metas[0]["flip_pairs"]
+                fused_features_flipped, img_metas[0]["flip_pairs"]
             )
+
+            # Combine flipped and un-flipped
             output_heatmap = output_heatmap + output_flipped_heatmap
             if self.test_cfg.get("regression_flip_shift", False):
                 output_heatmap[..., 0] -= 1.0 / img_width

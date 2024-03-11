@@ -199,7 +199,7 @@ model = dict(
     ),
     train_cfg=dict(),
     test_cfg=dict(
-        flip_test=False,
+        flip_test=True,
         post_process="default",
         shift_heatmap=False,
         target_type="GaussianHeatmap",

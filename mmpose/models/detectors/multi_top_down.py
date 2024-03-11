@@ -139,7 +139,7 @@ class MultiTopDown(BasePose):
         output_heatmap = self.keypoint_head.inference_model(features, flip_pairs=None)
 
         if self.test_cfg.get("flip_test", True):
-            img_flipped = img.flip(4)
+            img_flipped = img.flip(3)
             sub_images_flipped = [
                 img_flipped[:, model_slice, ...] for model_slice in self.model_slices
             ]
