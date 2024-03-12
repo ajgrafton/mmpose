@@ -83,13 +83,14 @@ channel_cfg = dict(
     inference_channel=[5, 6, 11, 12],
 )
 model = dict(
-    type="TopDownLateFusion",
+    type="TopDownEarlyFusion",
     selector_indices=[0, 1, 2],
+    fuse_after_stage=2,
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
     selector=dict(type="ResNet", depth=18),
     backbones=[
         dict(
-            type="HRNet",
+            type="BreakableHRNet",
             in_channels=3,
             extra=dict(
                 stage1=dict(
@@ -123,7 +124,7 @@ model = dict(
             ),
         ),
         dict(
-            type="HRNet",
+            type="BreakableHRNet",
             in_channels=1,
             extra=dict(
                 stage1=dict(
@@ -157,7 +158,7 @@ model = dict(
             ),
         ),
         dict(
-            type="HRNet",
+            type="BreakableHRNet",
             in_channels=1,
             extra=dict(
                 stage1=dict(

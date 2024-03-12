@@ -702,9 +702,9 @@ class HRNet(nn.Module):
         x_list = []
         for i in range(self.stage4_cfg["num_branches"]):
             if self.transition3[i] is not None:
-                x_list.append(self.transition3[i](y_list[-1]))
+                x_list.append(self.transition3[i](y_list2[-1]))
             else:
-                x_list.append(y_list[i])
+                x_list.append(y_list2[i])
         y_list = self.stage4(x_list)
 
         return y_list

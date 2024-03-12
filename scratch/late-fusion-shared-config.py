@@ -82,115 +82,118 @@ channel_cfg = dict(
     dataset_channel=[[5, 6, 11, 12]],
     inference_channel=[5, 6, 11, 12],
 )
+
+three_channel_hrnet = dict(
+    type="BreakableHRNet",
+    in_channels=3,
+    extra=dict(
+        stage1=dict(
+            num_modules=1,
+            num_branches=1,
+            block="BOTTLENECK",
+            num_blocks=(4,),
+            num_channels=(64,),
+        ),
+        stage2=dict(
+            num_modules=1,
+            num_branches=2,
+            block="BASIC",
+            num_blocks=(4, 4),
+            num_channels=(32, 64),
+        ),
+        stage3=dict(
+            num_modules=4,
+            num_branches=3,
+            block="BASIC",
+            num_blocks=(4, 4, 4),
+            num_channels=(32, 64, 128),
+        ),
+        stage4=dict(
+            num_modules=3,
+            num_branches=4,
+            block="BASIC",
+            num_blocks=(4, 4, 4, 4),
+            num_channels=(32, 64, 128, 256),
+        ),
+    ),
+)
+one_channel_hrnet = dict(
+    type="BreakableHRNet",
+    in_channels=1,
+    extra=dict(
+        stage1=dict(
+            num_modules=1,
+            num_branches=1,
+            block="BOTTLENECK",
+            num_blocks=(4,),
+            num_channels=(64,),
+        ),
+        stage2=dict(
+            num_modules=1,
+            num_branches=2,
+            block="BASIC",
+            num_blocks=(4, 4),
+            num_channels=(32, 64),
+        ),
+        stage3=dict(
+            num_modules=4,
+            num_branches=3,
+            block="BASIC",
+            num_blocks=(4, 4, 4),
+            num_channels=(32, 64, 128),
+        ),
+        stage4=dict(
+            num_modules=3,
+            num_branches=4,
+            block="BASIC",
+            num_blocks=(4, 4, 4, 4),
+            num_channels=(32, 64, 128, 256),
+        ),
+    ),
+)
+selector_hrnet = dict(
+    type="BreakableHRNet",
+    in_channels=1,
+    extra=dict(
+        stage1=dict(
+            num_modules=1,
+            num_branches=1,
+            block="BOTTLENECK",
+            num_blocks=(4,),
+            num_channels=(64,),
+        ),
+        stage2=dict(
+            num_modules=1,
+            num_branches=2,
+            block="BASIC",
+            num_blocks=(4, 4),
+            num_channels=(32, 64),
+        ),
+        stage3=dict(
+            num_modules=4,
+            num_branches=3,
+            block="BASIC",
+            num_blocks=(4, 4, 4),
+            num_channels=(32, 64, 128),
+        ),
+        stage4=dict(
+            num_modules=3,
+            num_branches=4,
+            block="BASIC",
+            num_blocks=(4, 4, 4, 4),
+            num_channels=(32, 64, 128, 256),
+        ),
+    ),
+)
+
 model = dict(
-    type="TopDownLateFusion",
-    selector_indices=[0, 1, 2],
+    type="TopDownLateFusionShared",
+    selector_model_indices=[0, 1, 2],
+    divide_after_stage=2,
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
-    selector=dict(type="ResNet", depth=18),
-    backbones=[
-        dict(
-            type="HRNet",
-            in_channels=3,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
-            ),
-        ),
-        dict(
-            type="HRNet",
-            in_channels=1,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
-            ),
-        ),
-        dict(
-            type="HRNet",
-            in_channels=1,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
-            ),
-        ),
-    ],
+    selector=selector_hrnet,
+    backbones=[three_channel_hrnet, one_channel_hrnet, one_channel_hrnet],
+    selector_head_map_size=[56, 72],
     keypoint_head=dict(
         type="TopdownHeatmapSimpleHead",
         in_channels=32,

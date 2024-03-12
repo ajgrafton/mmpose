@@ -45,12 +45,13 @@ class TopDownLateFusion(BasePose):
         self.fp16_enabled = False
         self.models = torch.nn.ModuleList()
         self.model_slices = []
-        self.fusion_selector_backbone = builder.build_backbone(selector)
-        self.fusion_selector_head = self.make_selector_head()
+        self.selector_indices = selector_indices
+        selector["in_channels"] = len(self.selector_indices)
+        self.fusion_backbone = builder.build_backbone(selector)
+        self.fusion_head = self.make_selector_head()
         current_channel = 0
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
-        self.selector_indices = selector_indices
 
         self.num_models = len(backbones)
         for i in range(self.num_models):
@@ -112,10 +113,8 @@ class TopDownLateFusion(BasePose):
         # Run the image through the head and backbone, using only the channels
         # relevant for the fusion selection, as specified by self.selector_indices
         # in the config.
-        backbone_result = self.fusion_selector_backbone(
-            img[:, self.selector_indices, ...]
-        )
-        fusion_result = self.fusion_selector_head(backbone_result)
+        backbone_result = self.fusion_backbone(img[:, self.selector_indices, ...])
+        fusion_result = self.fusion_head(backbone_result)
 
         # Reshape the fusion result so that it can be applied to the features tensor:
         # [num models x num images x num feature maps x height x width
