@@ -97,7 +97,7 @@ class TopDownEarlyFusion(BasePose):
 
         backbone_result = self.fusion_backbone(img[:, self.selector_indices, ...])
         fusion_weights = self.fusion_head(backbone_result)
-        fusion_weights = fusion_weights.reshape([self.num_models, 1, 1, 1, 1])
+        fusion_weights = fusion_weights.reshape([self.num_models, -1, 1, 1, 1])
 
         if list_of_lists:
             results = []
