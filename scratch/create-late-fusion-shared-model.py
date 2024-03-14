@@ -36,6 +36,14 @@ for key in hrnet_keys:
         index = int(sub_key[: sub_key.find(".")])
         if index >= fuse_after_index + 1:
             full_state["fusion_backbone." + key[9:]] = hrnet_state[key]
+
+
+if f"fusion_backbone.transition{fuse_after_index}.0.0.weight" in full_state:
+    full_state[f"fusion_backbone.transition{fuse_after_index}.0.0.weight"] = torch.tile(
+        full_state[f"fusion_backbone.transition{fuse_after_index}.0.0.weight"],
+        (1, len(selector_model_indices), 1, 1),
+    )
+
 full_state[
     f"fusion_backbone.transition{fuse_after_index}.{fuse_after_index}.0.0.weight"
 ] = torch.tile(
@@ -44,68 +52,58 @@ full_state[
     ],
     (1, len(selector_model_indices), 1, 1),
 )
-full_state[f"fusion_backbone.stage{fuse_after_index+1}.0.branches.0.0.conv1.weight"] = (
-    torch.tile(
+
+for i in range(fuse_after_index):
+    if fuse_after_index > 1:  # Otherwise the transition layer does this
         full_state[
-            f"fusion_backbone.stage{fuse_after_index+1}.0.branches.0.0.conv1.weight"
-        ],
-        (1, len(selector_model_indices), 1, 1),
-    )
-)
-full_state[f"fusion_backbone.stage{fuse_after_index+1}.0.branches.1.0.conv1.weight"] = (
-    torch.tile(
+            f"fusion_backbone.stage{fuse_after_index+1}.0.branches.{i}.0.conv1.weight"
+        ] = torch.tile(
+            full_state[
+                f"fusion_backbone.stage{fuse_after_index+1}.0.branches.{i}.0.conv1.weight"
+            ],
+            (1, len(selector_model_indices), 1, 1),
+        )
+
+for j in range(fuse_after_index):
+    if fuse_after_index == 1:
+        break
+    channels_after = config["model"]["selector"]["extra"][f"stage{fuse_after_index+1}"][
+        "num_channels"
+    ][j]
+    print(channels_after)
+    channels_before = [
+        model["extra"][f"stage{fuse_after_index+1}"]["num_channels"][j]
+        for model in config["model"]["backbones"]
+    ]
+    print(channels_before)
+    full_state[
+        f"fusion_backbone.stage{fuse_after_index+1}.0.branches.{j}.0.downsample.0.weight"
+    ] = torch.zeros(size=(channels_after, sum(channels_before), 1, 1))
+    start = 0
+    for i in range(len(channels_before)):
+        dim = min(channels_before[i], channels_after)
         full_state[
-            f"fusion_backbone.stage{fuse_after_index+1}.0.branches.1.0.conv1.weight"
-        ],
-        (1, len(selector_model_indices), 1, 1),
-    )
-)
+            f"fusion_backbone.stage{fuse_after_index + 1}.0.branches.{j}.0.downsample.0.weight"
+        ][:dim, start : (start + dim), 0, 0] = torch.eye(dim) / len(channels_before)
+        start += channels_before[i]
 
-# MAKE THESE PROGRAMMATICALLY!
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.0.0.downsample.0.weight"
-] = (torch.randn(size=(32, 96, 1, 1)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.0.0.downsample.1.weight"
-] = (torch.randn(size=(32,)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.0.0.downsample.1.bias"
-] = (torch.randn(size=(32,)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.0.0.downsample.1.running_mean"
-] = (torch.randn(size=(32,)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.0.0.downsample.1.running_var"
-] = (torch.randn(size=(32,)) * 0.1)
-
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.1.0.downsample.0.weight"
-] = (torch.randn(size=(64, 192, 1, 1)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.1.0.downsample.1.weight"
-] = (torch.randn(size=(64,)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.1.0.downsample.1.bias"
-] = (torch.randn(size=(64,)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.1.0.downsample.1.running_mean"
-] = (torch.randn(size=(64,)) * 0.1)
-full_state[
-    f"fusion_backbone.stage{fuse_after_index+1}.0.branches.1.0.downsample.1.running_var"
-] = (torch.randn(size=(64,)) * 0.1)
-
+    full_state[
+        f"fusion_backbone.stage{fuse_after_index + 1}.0.branches.{j}.0.downsample.1.weight"
+    ] = torch.ones(size=(channels_after,))
+    full_state[
+        f"fusion_backbone.stage{fuse_after_index + 1}.0.branches.{j}.0.downsample.1.bias"
+    ] = torch.zeros(size=(channels_after,))
+    full_state[
+        f"fusion_backbone.stage{fuse_after_index + 1}.0.branches.{j}.0.downsample.1.running_mean"
+    ] = torch.zeros(size=(channels_after,))
+    full_state[
+        f"fusion_backbone.stage{fuse_after_index + 1}.0.branches.{j}.0.downsample.1.running_var"
+    ] = torch.ones(size=(channels_after,))
 
 full_state["fusion_head.2.weight"] = (
     torch.randn(size=(3, selector_size[0] * selector_size[1] * 32 // 16)) * 0.1
 )
 full_state["fusion_head.2.bias"] = torch.randn(size=(3,)) * 0.1
-
-# for key in hrnet_state.keys():
-#     if key.startswith("fc"):
-#         continue
-#     full_state["fusion_backbone." + key] = resnet_state[key]
-# full_state["fusion_head.2.weight"] = torch.randn(size=(3, 1024)) * 0.1
-# full_state["fusion_head.2.bias"] = torch.randn(size=(3,)) * 0.1
 
 torch.save(full_model, output_model)
 

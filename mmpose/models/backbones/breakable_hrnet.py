@@ -139,7 +139,9 @@ class BreakableHRNet(nn.Module, BreakableBackbone):
             block = HRNet.blocks_dict[block_type]
             num_channels = [channel * get_expansion(block) for channel in num_channels]
             self.transition1, transition1_channels = self._make_transition_layer(
-                [stage1_out_channels], num_channels
+                [stage1_out_channels],
+                num_channels,
+                self.stage1_cfg["num_channels_combined"],
             )
             self.stage2, pre_stage_channels = self._make_stage(
                 self.stage2_cfg, transition1_channels
@@ -197,10 +199,13 @@ class BreakableHRNet(nn.Module, BreakableBackbone):
 
     def _modify_config(self):
         if self.divide_stage == 1:
-            self.extra["stage1"]["num_channels"] = (
+            self.extra["stage1"]["num_channels_combined"] = (
                 sum(
                     [
                         backbone["extra"]["stage1"]["num_channels"][0]
+                        * get_expansion(
+                            HRNet.blocks_dict[backbone["extra"]["stage1"]["block"]]
+                        )
                         for backbone in self.inputs_to_combine
                     ]
                 ),

@@ -85,7 +85,7 @@ channel_cfg = dict(
 model = dict(
     type="TopDownEarlyFusion",
     selector_indices=[0, 1, 2],
-    fuse_after_stage=2,
+    fuse_after_stage=3,
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
     selector=dict(type="ResNet", depth=18),
     backbones=[
