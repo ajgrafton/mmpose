@@ -5,7 +5,6 @@ import cv2
 from mmcv import Config
 
 main_pretrained = "multi-model.pth"
-output_model = "early-fusion-shared-model.pth"
 config_file = "early-fusion-shared-config.py"
 pretrained_hrnet = "/Users/alex/Downloads/td_torso_model.pth"
 
@@ -21,6 +20,8 @@ config = Config.fromfile(config_file)
 fusion_stage = config["model"]["fuse_after_stage"]
 selector_size = config["model"]["selector_head_map_size"]
 selector_model_indices = config["model"]["selector_model_indices"]
+
+output_model = f"early-fusion-shared-stage{fusion_stage}-model.pth"
 
 hrnet_keys = hrnet_state.keys()
 state_keys = list(full_state.keys())

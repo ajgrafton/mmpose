@@ -6,7 +6,6 @@ import cv2
 
 resnet_pretrained = "/Users/alex/Downloads/resnet18-f37072fd.pth"
 main_pretrained = "multi-model.pth"
-output_model = "early-fusion-model.pth"
 config_file = "early-fusion-config.py"
 config = Config.fromfile(config_file)
 
@@ -17,6 +16,8 @@ head_key = "keypoint_head.final_layer.weight"
 full_state[head_key] = full_state[head_key][:, :32, :, :] * 1.5
 
 fusion_stage = config["model"]["fuse_after_stage"]
+output_model = f"early-fusion-stage{fusion_stage}-model.pth"
+
 # Remove models.{1+}.transition{fuse_after_stage+...}...
 # Remove models.{1+}.stage{fuse_after_stage+1+}...
 state_keys = list(full_state.keys())

@@ -5,7 +5,6 @@ import cv2
 from mmcv import Config
 
 main_pretrained = "multi-model.pth"
-output_model = "late-fusion-shared-model.pth"
 config_file = "late-fusion-shared-config.py"
 pretrained_hrnet = "/Users/alex/Downloads/td_torso_model.pth"
 
@@ -20,7 +19,7 @@ fuse_after_index = config["model"]["divide_after_stage"]
 selector_size = config["model"]["selector_head_map_size"]
 selector_model_indices = config["model"]["selector_model_indices"]
 
-
+output_model = f"late-fusion-shared-stage{fuse_after_index}-model.pth"
 # Load a pre-trained HRNet but only the parts that we need!
 # Use transition{fuse_after_index+}
 # Use stage{fuse_after_index+1+}
@@ -70,12 +69,10 @@ for j in range(fuse_after_index):
     channels_after = config["model"]["selector"]["extra"][f"stage{fuse_after_index+1}"][
         "num_channels"
     ][j]
-    print(channels_after)
     channels_before = [
         model["extra"][f"stage{fuse_after_index+1}"]["num_channels"][j]
         for model in config["model"]["backbones"]
     ]
-    print(channels_before)
     full_state[
         f"fusion_backbone.stage{fuse_after_index+1}.0.branches.{j}.0.downsample.0.weight"
     ] = torch.zeros(size=(channels_after, sum(channels_before), 1, 1))
