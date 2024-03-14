@@ -141,7 +141,7 @@ class TopDownEarlyFusion(BasePose):
         # Do part 2 of the first model only, and head
         part_2_result = self.models[0](fused_part_1, part=2)
 
-        output = self.keypoint_head.inference_model(part_2_result, flip_pairs=None)
+        output = self.keypoint_head(part_2_result)
 
         # Get the losses
         losses = dict()
