@@ -57,7 +57,7 @@ full_state["fusion_head.2.weight"] = torch.randn(size=(3, linear_layer_size)) * 
 
 # Make it so that there's something coming out of the model so it doesn't mess
 # up every derivative in the HRNets!
-full_state["fusion_head.2.bias"] = torch.ones(size=(3,)) * 1
+full_state["fusion_head.2.bias"] = torch.ones(size=(3,)) * 0
 # full_state["fusion_head.2.bias"] = torch.asarray([-1.0, -1.0, -1.0])
 # full_state["fusion_head.2.bias"][1] = 1000000
 # full_state["fusion_head.2.bias"] = torch.randn(size=(3,)) * 0.1

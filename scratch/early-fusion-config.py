@@ -86,6 +86,7 @@ model = dict(
     type="TopDownEarlyFusion",
     selector_indices=[0, 1, 2],
     fuse_after_stage=2,
+    freeze_head=True,
     selector_head_map_size=[56, 72],
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
     selector=dict(type="ResNet", depth=18),

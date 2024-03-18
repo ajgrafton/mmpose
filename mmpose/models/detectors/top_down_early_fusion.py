@@ -44,6 +44,7 @@ class TopDownEarlyFusion(BasePose):
         selector_head_map_size,
         fuse_after_stage: int,
         train_cfg=None,
+        freeze_head: bool = False,
         test_cfg=None,
         pretrained=None,
     ):
@@ -72,6 +73,12 @@ class TopDownEarlyFusion(BasePose):
         keypoint_head["train_cfg"] = train_cfg
         keypoint_head["test_cfg"] = test_cfg
         self.keypoint_head = builder.build_head(keypoint_head)
+        if freeze_head:
+            for m in self.keypoint_head.modules():
+                print(m)
+                m.eval()
+                for param in m.parameters():
+                    param.requires_grad = False
 
     @auto_fp16(apply_to=("img",))
     def forward(
