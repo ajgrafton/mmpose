@@ -41,6 +41,7 @@ class TopDownEarlyFusion(BasePose):
         selector,
         backbones,
         keypoint_head,
+        selector_head_map_size,
         fuse_after_stage: int,
         train_cfg=None,
         test_cfg=None,
@@ -53,6 +54,7 @@ class TopDownEarlyFusion(BasePose):
         self.num_models = len(backbones)
         self.fuse_after_stage = fuse_after_stage
         self.pretrained = pretrained
+        self.selector_head_map_size = [x for x in selector_head_map_size]
 
         self.fusion_backbone = None
         self.fusion_head = None
@@ -96,6 +98,7 @@ class TopDownEarlyFusion(BasePose):
             list_of_lists = False
 
         backbone_result = self.fusion_backbone(img[:, self.selector_indices, ...])
+        backbone_result = self.output_resizer(backbone_result)
         fusion_weights = self.fusion_head(backbone_result)
         fusion_weights = fusion_weights.reshape([self.num_models, -1, 1, 1, 1])
 
@@ -206,9 +209,17 @@ class TopDownEarlyFusion(BasePose):
         return result
 
     def make_selector_head(self):
-        pool_layer = torch.nn.AvgPool2d(kernel_size=4)
+
+        self.output_resizer = torchvision.transforms.Resize(
+            (self.selector_head_map_size[1], self.selector_head_map_size[0]),
+            antialias=False,
+        )
+        linear_layer_size = (
+            self.selector_head_map_size[0] * self.selector_head_map_size[1] * 8
+        )
+        pool_layer = torch.nn.AvgPool2d(kernel_size=8)
         flatten_layer = torch.nn.Flatten()
-        linear_layer = torch.nn.Linear(1024, self.num_models)
+        linear_layer = torch.nn.Linear(linear_layer_size, self.num_models)
         softmax_layer = torch.nn.Softmax(dim=1)
         return torch.nn.Sequential(
             pool_layer, flatten_layer, linear_layer, softmax_layer

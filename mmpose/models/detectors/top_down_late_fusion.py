@@ -2,6 +2,7 @@ import warnings
 
 import mmcv
 import numpy as np
+import torchvision
 from mmcv.image import imwrite
 from mmcv.utils.misc import deprecated_api_warning
 from mmcv.visualization.image import imshow
@@ -37,6 +38,7 @@ class TopDownLateFusion(BasePose):
         selector,
         backbones,
         keypoint_head,
+        selector_head_map_size,
         train_cfg=None,
         test_cfg=None,
         pretrained=None,
@@ -47,6 +49,8 @@ class TopDownLateFusion(BasePose):
         self.model_slices = []
         self.selector_indices = selector_indices
         selector["in_channels"] = len(self.selector_indices)
+        self.selector_head_map_size = [x for x in selector_head_map_size]
+        self.output_resizer = None
         self.fusion_backbone = builder.build_backbone(selector)
         self.fusion_head = self.make_selector_head()
         current_channel = 0
@@ -70,11 +74,17 @@ class TopDownLateFusion(BasePose):
         keypoint_head["test_cfg"] = test_cfg
         self.keypoint_head = builder.build_head(keypoint_head)
 
-    @staticmethod
-    def make_selector_head():
-        pool_layer = torch.nn.AvgPool2d(kernel_size=4)
+    def make_selector_head(self):
+        self.output_resizer = torchvision.transforms.Resize(
+            (self.selector_head_map_size[1], self.selector_head_map_size[0]),
+            antialias=False,
+        )
+        linear_layer_size = (
+            self.selector_head_map_size[0] * self.selector_head_map_size[1] * 8
+        )
+        pool_layer = torch.nn.AvgPool2d(kernel_size=8)
         flatten_layer = torch.nn.Flatten()
-        linear_layer = torch.nn.Linear(1024, 3)
+        linear_layer = torch.nn.Linear(linear_layer_size, 3)
         softmax_layer = torch.nn.Softmax(dim=1)
         return torch.nn.Sequential(
             pool_layer, flatten_layer, linear_layer, softmax_layer
@@ -119,7 +129,7 @@ class TopDownLateFusion(BasePose):
         # Reshape the fusion result so that it can be applied to the features tensor:
         # [num models x num images x num feature maps x height x width
         fusion_result = fusion_result.reshape([self.num_models, -1, 1, 1, 1])
-
+        print(f"Fusion Weights = {fusion_result.reshape([-1])}")
         # Stack up the features and use the fusion results as a weighed sum
         stacked_features = torch.stack(features, dim=0)
         fused_features = torch.sum(

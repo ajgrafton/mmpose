@@ -85,7 +85,8 @@ channel_cfg = dict(
 model = dict(
     type="TopDownEarlyFusion",
     selector_indices=[0, 1, 2],
-    fuse_after_stage=3,
+    fuse_after_stage=2,
+    selector_head_map_size=[56, 72],
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
     selector=dict(type="ResNet", depth=18),
     backbones=[
@@ -211,8 +212,8 @@ model = dict(
     ),
 )
 data_cfg = dict(
-    image_size=[224, 288],
-    heatmap_size=[56, 72],
+    image_size=[896, 1152],
+    heatmap_size=[224, 288],
     num_output_channels=4,
     num_joints=4,
     dataset_channel=[[5, 6, 11, 12]],
@@ -227,8 +228,8 @@ data_cfg = dict(
     bbox_file="/Users/alex/dev/topdown/jsons/example-json.json",
 )
 
-img_mean = [0.485, 0.456, 0.406, 0.449, 0.449]
-img_std = [0.229, 0.224, 0.225, 0.226, 0.226]
+img_mean = [0.485, 0.456, 0.406, 0.336, 0.579]
+img_std = [0.229, 0.224, 0.225, 0.200, 0.280]
 
 train_pipeline = [
     dict(type="LoadImageFromMeerkat"),

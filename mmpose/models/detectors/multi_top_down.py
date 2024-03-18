@@ -149,7 +149,7 @@ class MultiTopDown(BasePose):
 
             # Stack the outputs
             features_flipped = [
-                torch.cat([op[i] for op in features_flipped], dim=0)
+                torch.cat([op[i] for op in features_flipped], dim=1)
                 for i in range(len(features_flipped[0]))
             ]
             output_flipped_heatmap = self.keypoint_head.inference_model(

@@ -2,15 +2,18 @@ import numpy as np
 import torch
 from mmpose.apis import init_pose_model, inference_top_down_pose_model
 import cv2
+from meerkat.training_data import MeerkatDataLoader
+import matplotlib.pyplot as plt
 
 
 image_file = "/Users/alex/Downloads/person.jpg"
-pretrained_model_file = "/Users/alex/Downloads/epoch_10.pth"
+pretrained_model_file = "/Users/alex/Downloads/epoch_10-3.pth"
 multi_model_file = "multi-model.pth"
 multi_config_file = "multi-test-config.py"
 ref_model_file = "/Users/alex/Downloads/td_torso_model.pth"
 ref_model_config = "color-model-config.py"
 
+# model_params = torch.load(ref_model_file, map_location="cpu")
 model_params = torch.load(pretrained_model_file, map_location="cpu")
 
 # The backbone needs to be replaced with "models.0" in the key
@@ -40,8 +43,8 @@ print(amount_added)
 
 # Make the keypoint head the right size
 head_key = "keypoint_head.final_layer.weight"
-state_dict[head_key] = torch.tile(state_dict[head_key], (1, 3, 1, 1)) / 1.5
-# state_dict[head_key][:, 32:, :, :] = 0.0
+state_dict[head_key] = torch.tile(state_dict[head_key], (1, 3, 1, 1))
+state_dict[head_key][:, 32:, :, :] = 0.0
 # state_dict[head_key][:, :32, ...] = 0.0
 # state_dict[head_key][:, 64:, ...] = 0.0
 
@@ -56,20 +59,28 @@ model_params["state_dict"] = state_dict
 torch.save(model_params, multi_model_file)
 # multi_model = init_pose_model(multi_config_file, multi_model_file, device="cpu")
 multi_model = init_pose_model(multi_config_file, multi_model_file, device="cpu")
-reference_model = init_pose_model(ref_model_config, ref_model_file, device="cpu")
-
+# reference_model = init_pose_model(ref_model_config, ref_model_file, device="cpu")
+reference_model = init_pose_model(ref_model_config, pretrained_model_file, device="cpu")
 # Create images to test
-img_color = cv2.imread(image_file)
+img_color = MeerkatDataLoader().load_image(
+    "test-multi-archives/archive_1:img_0_bgr_r0:-1_-1_-1_-1"
+)
+# img_color = cv2.imread(image_file)
 img_multi = np.zeros_like(img_color, shape=(img_color.shape[0], img_color.shape[1], 5))
-img_multi[:, :, :3] = img_color * 0
+img_multi[:, :, :3] = img_color
 img_multi[:, :, 3] = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 img_multi[:, :, 4] = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 
 # Test the models
-
 
 results_multi = inference_top_down_pose_model(multi_model, img_multi)
 results_ref = inference_top_down_pose_model(reference_model, img_color)
 
 print(results_multi[0][0]["keypoints"])
 print(results_ref[0][0]["keypoints"])
+
+plt.figure()
+plt.imshow(img_color[:, :, [2, 1, 0]])
+plt.plot(*results_multi[0][0]["keypoints"][:, :2].T, "or")
+plt.plot(*results_ref[0][0]["keypoints"][:, :2].T, ".b")
+plt.show()

@@ -189,7 +189,7 @@ selector_hrnet = dict(
 model = dict(
     type="TopDownEarlyFusionShared",
     selector_model_indices=[0, 1, 2],
-    fuse_after_stage=1,
+    fuse_after_stage=3,
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
     selector=selector_hrnet,
     backbones=[three_channel_hrnet, one_channel_hrnet, one_channel_hrnet],
@@ -213,8 +213,8 @@ model = dict(
     ),
 )
 data_cfg = dict(
-    image_size=[224, 288],
-    heatmap_size=[56, 72],
+    image_size=[896, 1152],
+    heatmap_size=[224, 288],
     num_output_channels=4,
     num_joints=4,
     dataset_channel=[[5, 6, 11, 12]],

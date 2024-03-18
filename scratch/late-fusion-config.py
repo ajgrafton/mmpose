@@ -87,6 +87,7 @@ model = dict(
     selector_indices=[0, 1, 2],
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
     selector=dict(type="ResNet", depth=18),
+    selector_head_map_size=[56, 72],
     backbones=[
         dict(
             type="HRNet",
@@ -201,7 +202,7 @@ model = dict(
     ),
     train_cfg=dict(),
     test_cfg=dict(
-        flip_test=True,
+        flip_test=False,
         post_process="default",
         shift_heatmap=False,
         target_type="GaussianHeatmap",

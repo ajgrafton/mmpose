@@ -3,6 +3,7 @@ import torch
 from mmpose.apis import init_pose_model, inference_top_down_pose_model
 import cv2
 from mmcv import Config
+import matplotlib.pyplot as plt
 
 main_pretrained = "multi-model.pth"
 config_file = "late-fusion-shared-config.py"
@@ -98,18 +99,23 @@ for j in range(fuse_after_index):
     ] = torch.ones(size=(channels_after,))
 
 full_state["fusion_head.2.weight"] = (
-    torch.randn(size=(3, selector_size[0] * selector_size[1] * 32 // 16)) * 0.1
+    torch.randn(size=(3, selector_size[0] * selector_size[1] * 32 // 16)) * 0.01
 )
-full_state["fusion_head.2.bias"] = torch.randn(size=(3,)) * 0.1
+full_state["fusion_head.2.bias"] = torch.ones(size=(3,)) * 1.0
 
 torch.save(full_model, output_model)
 
 model = init_pose_model(config_file, output_model, device="cpu")
 
 image_file = "/Users/alex/Downloads/person.jpg"
-img_color = cv2.imread(image_file)
+img_color = cv2.imread(image_file)[:, 50:300, ...]
 img_multi = np.zeros_like(img_color, shape=(img_color.shape[0], img_color.shape[1], 5))
-img_multi[:, :, :3] = img_color * 0
+img_multi[:, :, :3] = img_color
 img_multi[:, :, 3] = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
 img_multi[:, :, 4] = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
-inference_top_down_pose_model(model, img_multi)
+results = inference_top_down_pose_model(model, img_multi)[0][0]["keypoints"]
+print(results)
+plt.figure()
+plt.imshow(img_color)
+plt.plot(results[:, 0], results[:, 1], "or")
+plt.show()

@@ -6,7 +6,7 @@ import os
 
 annotator = Annotator.create("test-multi")
 annotator.add_annotations(
-    "/data/mk025b_torso_training_2_dir.csv", "/data/annotation/mk025b/", "mk025b"
+    "/data/anns/mk005a_torso_training_dir.csv", "/data/annotation/mk005a/", "mk005a"
 )
 annotator.set_combine_channels(True)
 annotator.set_bgr(True)
@@ -14,7 +14,7 @@ annotator.set_ir(True)
 annotator.set_depth(True)
 annotator.set_upright(True)
 annotator.check_json_export()
-# annotator.export_to_json("test-multi-annotations.json", "test-multi-archives")
+annotator.export_to_json("test-multi-annotations.json", "test-multi-archives")
 
 loader = LoadMultipleImagesFromMeerkat(color_start_indices=0)
 with open("test-multi-annotations.json", "r") as f:
