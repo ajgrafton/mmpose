@@ -383,7 +383,7 @@ class BreakableHRNet(nn.Module, BreakableBackbone):
             for param in m.parameters():
                 param.requires_grad = False
 
-            if i < 4:
+            if i < 4 and getattr(self, f"build_stage_{i+1}"):
                 m = getattr(self, f"transition{i}")
                 m.eval()
                 for param in m.parameters():
