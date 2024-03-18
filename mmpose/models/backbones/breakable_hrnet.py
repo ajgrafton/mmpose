@@ -61,10 +61,6 @@ class BreakableHRNet(nn.Module, BreakableBackbone):
             raise NotImplementedError(
                 "Dropout is not yet implemented for BreakableHRNet"
             )
-        if frozen_stages != -1:
-            raise NotImplementedError(
-                "Frozen Stages are not implemented yet for BreakableHRNet"
-            )
 
         self.run_part_1 = run_part_1
         self.run_part_2 = run_part_2
