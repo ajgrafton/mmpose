@@ -128,8 +128,9 @@ class TopDownLateFusion(BasePose):
 
         # Reshape the fusion result so that it can be applied to the features tensor:
         # [num models x num images x num feature maps x height x width
-        fusion_result = fusion_result.reshape([self.num_models, -1, 1, 1, 1])
-        print(f"Fusion Weights = {fusion_result.reshape([-1])}")
+        fusion_result = torch.transpose(fusion_result, 0, 1).reshape(
+            [self.num_models, -1, 1, 1, 1]
+        )
         # Stack up the features and use the fusion results as a weighed sum
         stacked_features = torch.stack(features, dim=0)
         fused_features = torch.sum(

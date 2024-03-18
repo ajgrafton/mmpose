@@ -122,7 +122,9 @@ class TopDownLateFusionShared(BasePose):
         backbone_output = self.output_resizer(backbone_output)
         # Run the fusion head
         fusion_weights = self.fusion_head(backbone_output)
-        fusion_weights = fusion_weights.reshape([self.num_models, -1, 1, 1, 1])
+        fusion_weights = torch.transpose(fusion_weights, 0, 1).reshape(
+            [self.num_models, -1, 1, 1, 1]
+        )
         # Stack the features and do the weighted sum
         features = torch.stack(features, dim=0)
         fused_features = torch.sum(features * fusion_weights, dim=0, keepdim=False)

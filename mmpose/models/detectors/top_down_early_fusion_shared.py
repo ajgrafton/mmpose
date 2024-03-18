@@ -103,7 +103,9 @@ class TopDownEarlyFusionShared(BasePose):
         backbone_output = self.fusion_backbone.prep_output(backbone_output)
         backbone_output = self.output_resizer(backbone_output)
         fusion_weights = self.fusion_head(backbone_output)
-        fusion_weights = fusion_weights.reshape([self.num_models, -1, 1, 1, 1])
+        fusion_weights = torch.transpose(fusion_weights, 0, 1).reshape(
+            [self.num_models, -1, 1, 1, 1]
+        )
 
         if list_of_lists:
             results = []

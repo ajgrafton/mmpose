@@ -75,7 +75,6 @@ class TopDownEarlyFusion(BasePose):
         self.keypoint_head = builder.build_head(keypoint_head)
         if freeze_head:
             for m in self.keypoint_head.modules():
-                print(m)
                 m.eval()
                 for param in m.parameters():
                     param.requires_grad = False
@@ -106,9 +105,11 @@ class TopDownEarlyFusion(BasePose):
 
         backbone_result = self.fusion_backbone(img[:, self.selector_indices, ...])
         backbone_result = self.output_resizer(backbone_result)
-        fusion_weights = self.fusion_head(backbone_result)
-        fusion_weights = fusion_weights.reshape([self.num_models, -1, 1, 1, 1])
 
+        fusion_weights = self.fusion_head(backbone_result)
+        fusion_weights = torch.transpose(fusion_weights, 0, 1).reshape(
+            [self.num_models, -1, 1, 1, 1]
+        )
         if list_of_lists:
             results = []
             for i in range(len(part_1_features[0])):
@@ -116,6 +117,7 @@ class TopDownEarlyFusion(BasePose):
                 fused_features = torch.sum(
                     stacked_features * fusion_weights, dim=0, keepdim=False
                 )
+
                 results.append(fused_features)
             return results
 
@@ -179,7 +181,6 @@ class TopDownEarlyFusion(BasePose):
 
         # Do the signal fusion
         fused_part_1 = self.apply_early_fusion(img, part_1_features)
-
         # Do part 2 of the first model only, and head
         part_2_result = self.models[0](fused_part_1, part=2)
         output_heatmap = self.keypoint_head.inference_model(

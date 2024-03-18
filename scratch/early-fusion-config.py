@@ -1,9 +1,12 @@
 LEARNING_RATE = 0.0005
 MK = "mk001a"
-data_root = "/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-datasets/torso-3/"
-ann_file = f"{data_root}/jsons/torso_annotations_{MK}.json"
-val_file = f"{data_root}/jsons/torso_annotations_{MK}_bgr_validation.json"
-img_prefix = f"{data_root}/archives/"
+ann_file = "/Users/alex/dev/mmpose-old/scratch/test-multi-annotations.json"
+val_file = "/Users/alex/dev/mmpose-old/scratch/test-multi-annotations.json"
+img_prefix = "/Users/alex/dev/mmpose-old/scratch/test-multi-archives/"
+# data_root = "/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-datasets/torso-3/"
+# ann_file = f"{data_root}/jsons/torso_annotations_{MK}.json"
+# val_file = f"{data_root}/jsons/torso_annotations_{MK}_bgr_validation.json"
+# img_prefix = f"{data_root}/archives/"
 
 checkpoint_config = dict(interval=1)
 log_config = dict(interval=50, hooks=[dict(type="TextLoggerHook")])
@@ -285,7 +288,7 @@ val_pipeline = [
     ),
 ]
 test_pipeline = [
-    dict(type="LoadImageFromMeerkat"),
+    dict(type="LoadMultipleImagesFromMeerkat"),
     dict(type="TopDownGetBboxCenterScale", padding=1.25),
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
     dict(type="TopDownAffine", use_udp=True),
@@ -307,9 +310,9 @@ test_pipeline = [
 
 data = dict(
     samples_per_gpu=2,
-    workers_per_gpu=1,
+    workers_per_gpu=0,
     val_dataloader=dict(samples_per_gpu=24),
-    test_dataloader=dict(samples_per_gpu=24),
+    test_dataloader=dict(samples_per_gpu=2),
     train=dict(
         type="TopDownCocoDataset",
         ann_file=ann_file,

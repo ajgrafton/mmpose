@@ -41,12 +41,12 @@ plt.figure()
 plt.imshow(color_image[:, :, [2, 1, 0]])
 results = inference_top_down_pose_model(model, img)[0][0]["keypoints"]
 results2 = inference_top_down_pose_model(model2, img[:, :, :3])[0][0]["keypoints"]
-results3 = inference_top_down_pose_model(model3, img)[0][0]["keypoints"]
+# results3 = inference_top_down_pose_model(model3, img)[0][0]["keypoints"]
 
 print(results)
 print(results2)
 # print(results3)
 plt.plot(results[:, 0], results[:, 1], "ob")
 plt.plot(results2[:, 0], results2[:, 1], "or")
-plt.plot(results3[:, 0], results3[:, 1], "og")
+# plt.plot(results3[:, 0], results3[:, 1], "og")
 plt.show()
