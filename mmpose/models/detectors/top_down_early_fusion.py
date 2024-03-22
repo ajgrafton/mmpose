@@ -1,6 +1,7 @@
 import copy
 import warnings
 
+import cv2
 import mmcv
 import numpy as np
 from mmcv.image import imwrite
@@ -17,6 +18,7 @@ from .top_down import TopDown
 import torch
 from typing import List, Dict, Union, Optional
 from torch import Tensor
+from torchvision.transforms.functional import rgb_to_grayscale
 
 
 try:
@@ -163,6 +165,8 @@ class TopDownEarlyFusion(BasePose):
         return sub_images
 
     def shuffle_and_dropout(self, sub_images: List[Tensor]) -> List[Tensor]:
+        original_n_channels = [img.shape[1] for img in sub_images]
+
         if self.image_shuffle_prob is None and self.image_dropout_prob is None:
             return sub_images
 
@@ -170,6 +174,12 @@ class TopDownEarlyFusion(BasePose):
             if not np.random.uniform(0.0, 1.0) < self.image_shuffle_prob:
                 shuffle_inds = np.random.permutation(len(sub_images))
                 sub_images = [sub_images[i] for i in shuffle_inds]
+                for i in range(len(sub_images)):
+                    if sub_images[i].shape[1] != original_n_channels[i]:
+                        if sub_images[i].shape[1] == 3:
+                            sub_images[i] = rgb_to_grayscale(sub_images[i])
+                        elif sub_images[i].shape[1] == 1:
+                            sub_images[i] = torch.tile(sub_images[i], (3, 1, 1))
 
         if self.image_dropout_prob is not None:
             shuffle_inds = np.random.permutation(len(sub_images))
