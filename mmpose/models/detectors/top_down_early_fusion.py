@@ -15,7 +15,7 @@ from ..builder import POSENETS
 from .base import BasePose
 from .top_down import TopDown
 import torch
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 from torch import Tensor
 
 
@@ -45,18 +45,22 @@ class TopDownEarlyFusion(BasePose):
         fuse_after_stage: int,
         train_cfg=None,
         freeze_head: bool = False,
+        image_dropout_prob: Optional[float] = None,
+        image_shuffle_prob: Optional[float] = None,
         test_cfg=None,
         pretrained=None,
     ):
         super().__init__()
         self.fp16_enabled = False
         self.models = torch.nn.ModuleList()
+        self.image_dropout_prob = image_dropout_prob
+        self.image_shuffle_prob = image_shuffle_prob
         self.model_slices = []
         self.num_models = len(backbones)
         self.fuse_after_stage = fuse_after_stage
         self.pretrained = pretrained
         self.selector_head_map_size = [x for x in selector_head_map_size]
-
+        self.fusion_only = False
         self.fusion_backbone = None
         self.fusion_head = None
         self.output_resizer = None
@@ -79,6 +83,9 @@ class TopDownEarlyFusion(BasePose):
                 for param in m.parameters():
                     param.requires_grad = False
 
+    def set_fusion_only(self, fusion_only: bool = True) -> None:
+        self.fusion_only = fusion_only
+
     @auto_fp16(apply_to=("img",))
     def forward(
         self,
@@ -92,9 +99,25 @@ class TopDownEarlyFusion(BasePose):
     ):
         if return_loss:
             return self.forward_train(img, target, target_weight, img_metas, **kwargs)
+        if self.fusion_only:
+            return self.forward_fusion(img, img_metas)
         return self.forward_test(
             img, img_metas, return_heatmap=return_heatmap, **kwargs
         )
+
+    def forward_fusion(self, img, img_metas):
+        assert len(img) == len(img_metas)
+        sub_images = self.divide_into_sub_images(img)
+        batch_size, _, img_height, img_width = sub_images[0].shape
+        if batch_size > 1:
+            assert "bbox_id" in img_metas[0]
+        result = {"preds": [None], "output_heatmap": None}
+
+        backbone_result = self.fusion_backbone(img[:, self.selector_indices, ...])
+        backbone_result = self.output_resizer(backbone_result)
+        fusion_weights = self.fusion_head(backbone_result)
+        result["preds"] = [fusion_weights]
+        return result
 
     def apply_early_fusion(
         self, img: Tensor, part_1_features: Union[List[Tensor], List[List[Tensor]]]
@@ -139,7 +162,27 @@ class TopDownEarlyFusion(BasePose):
         sub_images = [img[:, model_slice, ...] for model_slice in self.model_slices]
         return sub_images
 
+    def shuffle_and_dropout(self, sub_images: List[Tensor]) -> List[Tensor]:
+        if self.image_shuffle_prob is None and self.image_dropout_prob is None:
+            return sub_images
+
+        if self.image_shuffle_prob is not None:
+            if not np.random.uniform(0.0, 1.0) < self.image_shuffle_prob:
+                shuffle_inds = np.random.permutation(len(sub_images))
+                sub_images = [sub_images[i] for i in shuffle_inds]
+
+        if self.image_dropout_prob is not None:
+            shuffle_inds = np.random.permutation(len(sub_images))
+            for i in range(len(sub_images) - 1):
+                if np.random.uniform(0.0, 1.0) > self.image_dropout_prob:
+                    break
+                sub_images[shuffle_inds[i]] *= 0
+
+        return sub_images
+
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
+        img = self.shuffle_and_dropout(img)
+
         # Get the outputs for the backbones
         sub_images = self.divide_into_sub_images(img)
 

@@ -56,7 +56,7 @@ class TopDownEarlyFusionShared(BasePose):
         self.pretrained = pretrained
         self.selector_head_map_size = [x for x in selector_head_map_size]
         self.selector_model_indices = selector_model_indices
-
+        self.fusion_only = False
         self.fusion_backbone = None
         self.fusion_head = None
         self.output_resizer = None
@@ -72,6 +72,9 @@ class TopDownEarlyFusionShared(BasePose):
         keypoint_head["test_cfg"] = test_cfg
         self.keypoint_head = builder.build_head(keypoint_head)
 
+    def set_fusion_only(self, fusion_only: bool = True) -> None:
+        self.fusion_only = fusion_only
+
     @auto_fp16(apply_to=("img",))
     def forward(
         self,
@@ -85,9 +88,31 @@ class TopDownEarlyFusionShared(BasePose):
     ):
         if return_loss:
             return self.forward_train(img, target, target_weight, img_metas, **kwargs)
+        if self.fusion_only:
+            return self.forward_fusion(img, img_metas)
         return self.forward_test(
             img, img_metas, return_heatmap=return_heatmap, **kwargs
         )
+
+    def forward_fusion(self, img, img_metas):
+        assert len(img) == len(img_metas)
+        sub_images = self.divide_into_sub_images(img)
+        batch_size, _, img_height, img_width = sub_images[0].shape
+        if batch_size > 1:
+            assert "bbox_id" in img_metas[0]
+        result = {}
+
+        part_1_features = [
+            self.models[i](sub_images[i], part=1) for i in range(self.num_models)
+        ]
+        input_features = [part_1_features[i] for i in self.selector_model_indices]
+        fusion_inputs = self.fusion_backbone.prep_inputs(input_features)
+        backbone_output = self.fusion_backbone(fusion_inputs, part=2)
+        backbone_output = self.fusion_backbone.prep_output(backbone_output)
+        backbone_output = self.output_resizer(backbone_output)
+        fusion_weights = self.fusion_head(backbone_output)
+        result["weights"] = fusion_weights
+        return result
 
     def apply_early_fusion(
         self, part_1_features: Union[List[Tensor], List[List[Tensor]]]

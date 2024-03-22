@@ -53,6 +53,7 @@ class TopDownLateFusion(BasePose):
         self.output_resizer = None
         self.fusion_backbone = builder.build_backbone(selector)
         self.fusion_head = self.make_selector_head()
+        self.fusion_only = False
         current_channel = 0
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -73,6 +74,9 @@ class TopDownLateFusion(BasePose):
         keypoint_head["train_cfg"] = train_cfg
         keypoint_head["test_cfg"] = test_cfg
         self.keypoint_head = builder.build_head(keypoint_head)
+
+    def set_fusion_only(self, fusion_only: bool = True) -> None:
+        self.fusion_only = fusion_only
 
     def make_selector_head(self):
         self.output_resizer = torchvision.transforms.Resize(
@@ -103,9 +107,24 @@ class TopDownLateFusion(BasePose):
     ):
         if return_loss:
             return self.forward_train(img, target, target_weight, img_metas, **kwargs)
+        if self.fusion_only:
+            return self.forward_fusion(img, img_metas)
         return self.forward_test(
             img, img_metas, return_heatmap=return_heatmap, **kwargs
         )
+
+    def forward_fusion(self, img, img_metas):
+        assert len(img) == len(img_metas)
+        sub_images = self.divide_into_sub_images(img)
+        batch_size, _, img_height, img_width = sub_images[0].shape
+        if batch_size > 1:
+            assert "bbox_id" in img_metas[0]
+        result = {}
+
+        backbone_result = self.fusion_backbone(img[:, self.selector_indices, ...])
+        fusion_result = self.fusion_head(backbone_result)
+        result["weights"] = fusion_result
+        return result
 
     def apply_late_fusion(
         self, img: torch.Tensor, features: List[torch.Tensor]
