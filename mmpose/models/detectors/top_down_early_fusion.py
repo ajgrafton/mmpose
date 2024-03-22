@@ -191,10 +191,10 @@ class TopDownEarlyFusion(BasePose):
         return sub_images
 
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
-        img = self.shuffle_and_dropout(img)
 
         # Get the outputs for the backbones
         sub_images = self.divide_into_sub_images(img)
+        sub_images = self.shuffle_and_dropout(sub_images)
 
         part_1_features = [
             self.models[i](sub_images[i], part=1) for i in range(self.num_models)
