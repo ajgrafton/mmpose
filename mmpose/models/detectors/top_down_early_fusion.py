@@ -195,7 +195,6 @@ class TopDownEarlyFusion(BasePose):
 
     def forward_train_cycle(self, img, target, target_weight, img_metas, **kwargs):
         sub_images = self.divide_into_sub_images(img)
-        sub_images = self.shuffle_and_dropout(sub_images)
 
         if self.cycle_train_index < self.num_models:
             # We need to train through the (index)th model
@@ -209,6 +208,7 @@ class TopDownEarlyFusion(BasePose):
             self.cycle_train_index += 1
         else:
             # Lock the backbones
+            sub_images = self.shuffle_and_dropout(sub_images)
             for backbone in self.models:
                 backbone.requires_grad_(False)
             self.keypoint_head.requires_grad_(False)
