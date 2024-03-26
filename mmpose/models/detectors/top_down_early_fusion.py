@@ -48,6 +48,7 @@ class TopDownEarlyFusion(BasePose):
         train_cfg=None,
         freeze_head: bool = False,
         cycle_train: bool = False,
+        include_fusion_in_cycle_train: bool = True,
         image_dropout_prob: Optional[float] = None,
         image_shuffle_prob: Optional[float] = None,
         test_cfg=None,
@@ -57,6 +58,7 @@ class TopDownEarlyFusion(BasePose):
         self.fp16_enabled = False
         self.models = torch.nn.ModuleList()
         self.image_dropout_prob = image_dropout_prob
+        self.include_fusion_in_cycle_train = include_fusion_in_cycle_train
         self.image_shuffle_prob = image_shuffle_prob
         self.model_slices = []
         self.num_models = len(backbones)
@@ -206,6 +208,11 @@ class TopDownEarlyFusion(BasePose):
             output = self.keypoint_head(part_2_result)
             # Increment the index
             self.cycle_train_index += 1
+            if (
+                self.include_fusion_in_cycle_train
+                and self.cycle_train_index == self.num_models
+            ):
+                self.cycle_train_index = 0
         else:
             # Lock the backbones
             sub_images = self.shuffle_and_dropout(sub_images)
