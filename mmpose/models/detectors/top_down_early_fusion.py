@@ -47,6 +47,7 @@ class TopDownEarlyFusion(BasePose):
         fuse_after_stage: int,
         train_cfg=None,
         freeze_head: bool = False,
+        cycle_train: bool = False,
         image_dropout_prob: Optional[float] = None,
         image_shuffle_prob: Optional[float] = None,
         test_cfg=None,
@@ -67,6 +68,8 @@ class TopDownEarlyFusion(BasePose):
         self.fusion_head = None
         self.output_resizer = None
         self.selector_indices = selector_indices
+        self.cycle_train_index = 0
+        self.cycle_train = cycle_train
 
         selector["in_channels"] = len(self.selector_indices)
         self.build_fusion_model(selector)
@@ -190,7 +193,53 @@ class TopDownEarlyFusion(BasePose):
 
         return sub_images
 
+    def forward_train_cycle(self, img, target, target_weight, img_metas, **kwargs):
+        sub_images = self.divide_into_sub_images(img)
+        sub_images = self.shuffle_and_dropout(sub_images)
+
+        if self.cycle_train_index < self.num_models:
+            # We need to train through the (index)th model
+            model = self.models[self.cycle_train_index]
+            sub_image = sub_images[self.cycle_train_index]
+            part_1_result = model(sub_image, part=1)
+            # Part 2 is always through the 0th model
+            part_2_result = self.models[0](part_1_result, part=2)
+            output = self.keypoint_head(part_2_result)
+            # Increment the index
+            self.cycle_train_index += 1
+        else:
+            # Lock the backbones
+            for backbone in self.models:
+                backbone.requires_grad_(False)
+            self.keypoint_head.requires_grad_(False)
+            # Evaluate
+            part_1_features = [
+                self.models[i](sub_images[i], part=1) for i in range(self.num_models)
+            ]
+            fused_part_1 = self.apply_early_fusion(img, part_1_features)
+            part_2_result = self.models[0](fused_part_1, part=2)
+            output = self.keypoint_head(part_2_result)
+            # Unlock the backbones
+            for backbone in self.models:
+                backbone.requires_grad_(True)
+            self.keypoint_head.requires_grad_(True)
+            # Set the index back to zero
+            self.cycle_train_index = 0
+        # Create the losses as before
+        losses = dict()
+        keypoint_losses = self.keypoint_head.get_loss(output, target, target_weight)
+        losses.update(keypoint_losses)
+        keypoint_accuracy = self.keypoint_head.get_accuracy(
+            output, target, target_weight
+        )
+        losses.update(keypoint_accuracy)
+        return losses
+
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
+        if self.cycle_train:
+            return self.forward_train_cycle(
+                img, target, target_weight, img_metas, **kwargs
+            )
 
         # Get the outputs for the backbones
         sub_images = self.divide_into_sub_images(img)
