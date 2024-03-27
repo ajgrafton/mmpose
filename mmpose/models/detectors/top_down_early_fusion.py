@@ -13,7 +13,7 @@ import torchvision
 from .. import builder
 from ..backbones import BreakableBackbone
 from ..builder import POSENETS
-from .base import BasePose
+from .base import BaseFusionPose
 from .top_down import TopDown
 import torch
 from typing import List, Dict, Union, Optional
@@ -32,9 +32,9 @@ except ImportError:
 
 
 @POSENETS.register_module()
-class TopDownEarlyFusion(BasePose):
+class TopDownEarlyFusion(BaseFusionPose):
     """
-    Top down multiple image detector with late fusion to select which image source to use
+    Top down multiple image detector with early fusion to select which image source to use
     """
 
     def __init__(
@@ -48,6 +48,7 @@ class TopDownEarlyFusion(BasePose):
         train_cfg=None,
         freeze_head: bool = False,
         cycle_train: bool = False,
+        train_fusion_only=False,
         include_fusion_in_cycle_train: bool = True,
         image_dropout_prob: Optional[float] = None,
         image_shuffle_prob: Optional[float] = None,
@@ -71,8 +72,9 @@ class TopDownEarlyFusion(BasePose):
         self.output_resizer = None
         self.selector_indices = selector_indices
         self.cycle_train_index = 0
+        self.train_fusion_only = train_fusion_only
         self.cycle_train = cycle_train
-
+        self.forced_path = -1
         selector["in_channels"] = len(self.selector_indices)
         self.build_fusion_model(selector)
 
@@ -89,6 +91,11 @@ class TopDownEarlyFusion(BasePose):
                 m.eval()
                 for param in m.parameters():
                     param.requires_grad = False
+
+    def force_fusion_path(self, path_index: int) -> None:
+        if path_index < -1 or path_index >= self.num_models:
+            raise ValueError("path_index must be -1 or <= num_models")
+        self.forced_path = path_index
 
     def set_fusion_only(self, fusion_only: bool = True) -> None:
         self.fusion_only = fusion_only
@@ -129,6 +136,10 @@ class TopDownEarlyFusion(BasePose):
     def apply_early_fusion(
         self, img: Tensor, part_1_features: Union[List[Tensor], List[List[Tensor]]]
     ) -> Union[Tensor, List[Tensor]]:
+
+        if self.forced_path != -1:
+            return part_1_features[self.forced_path]
+
         list_of_lists = True
         if isinstance(part_1_features[0], Tensor):
             list_of_lists = False
@@ -198,7 +209,7 @@ class TopDownEarlyFusion(BasePose):
     def forward_train_cycle(self, img, target, target_weight, img_metas, **kwargs):
         sub_images = self.divide_into_sub_images(img)
 
-        if self.cycle_train_index < self.num_models:
+        if not self.train_fusion_only and self.cycle_train_index < self.num_models:
             # We need to train through the (index)th model
             model = self.models[self.cycle_train_index]
             sub_image = sub_images[self.cycle_train_index]
@@ -209,7 +220,7 @@ class TopDownEarlyFusion(BasePose):
             # Increment the index
             self.cycle_train_index += 1
             if (
-                self.include_fusion_in_cycle_train
+                not self.include_fusion_in_cycle_train  # TODO the logic on this is reversed!
                 and self.cycle_train_index == self.num_models
             ):
                 self.cycle_train_index = 0
@@ -243,7 +254,7 @@ class TopDownEarlyFusion(BasePose):
         return losses
 
     def forward_train(self, img, target, target_weight, img_metas, **kwargs):
-        if self.cycle_train:
+        if self.cycle_train or self.train_fusion_only:
             return self.forward_train_cycle(
                 img, target, target_weight, img_metas, **kwargs
             )
