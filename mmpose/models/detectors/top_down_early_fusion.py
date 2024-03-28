@@ -220,7 +220,7 @@ class TopDownEarlyFusion(BaseFusionPose):
             # Increment the index
             self.cycle_train_index += 1
             if (
-                not self.include_fusion_in_cycle_train  # TODO the logic on this is reversed!
+                not self.include_fusion_in_cycle_train
                 and self.cycle_train_index == self.num_models
             ):
                 self.cycle_train_index = 0
@@ -229,6 +229,7 @@ class TopDownEarlyFusion(BaseFusionPose):
             sub_images = self.shuffle_and_dropout(sub_images)
             for backbone in self.models:
                 backbone.requires_grad_(False)
+                backbone.eval()
             self.keypoint_head.requires_grad_(False)
             # Evaluate
             part_1_features = [
@@ -240,6 +241,7 @@ class TopDownEarlyFusion(BaseFusionPose):
             # Unlock the backbones
             for backbone in self.models:
                 backbone.requires_grad_(True)
+                backbone.train()
             self.keypoint_head.requires_grad_(True)
             # Set the index back to zero
             self.cycle_train_index = 0
