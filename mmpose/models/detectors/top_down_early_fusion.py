@@ -49,6 +49,7 @@ class TopDownEarlyFusion(BaseFusionPose):
         freeze_head: bool = False,
         cycle_train: bool = False,
         allow_fusion_bias: bool = True,
+        forced_fusion_route: int = -1,
         train_fusion_only=False,
         include_fusion_in_cycle_train: bool = True,
         image_dropout_prob: Optional[float] = None,
@@ -77,6 +78,7 @@ class TopDownEarlyFusion(BaseFusionPose):
         self.train_fusion_only = train_fusion_only
         self.cycle_train = cycle_train
         self.forced_path = -1
+        self.force_fusion_path(forced_fusion_route)
         selector["in_channels"] = len(self.selector_indices)
         self.build_fusion_model(selector)
 
@@ -299,9 +301,14 @@ class TopDownEarlyFusion(BaseFusionPose):
         result = {}
 
         # Run part 1 of each backbone
-        part_1_features = [
-            self.models[i](sub_images[i], part=1) for i in range(self.num_models)
-        ]
+        if self.forced_path == -1:
+            part_1_features = [
+                self.models[i](sub_images[i], part=1) for i in range(self.num_models)
+            ]
+        else:
+            part_1_features = [None] * self.num_models
+            i = self.forced_path
+            part_1_features[i] = self.models[i](sub_images[i], part=1)
 
         # Do the signal fusion
         fused_part_1 = self.apply_early_fusion(img, part_1_features)
@@ -315,10 +322,15 @@ class TopDownEarlyFusion(BaseFusionPose):
             # Flip the image
             img_flipped = img.flip(3)
             sub_images_flipped = self.divide_into_sub_images(img_flipped)
-            part_1_flipped = [
-                self.models[i](sub_images_flipped[i], part=1)
-                for i in range(self.num_models)
-            ]
+            if self.forced_path == -1:
+                part_1_flipped = [
+                    self.models[i](sub_images_flipped[i], part=1)
+                    for i in range(self.num_models)
+                ]
+            else:
+                i = self.forced_path
+                part_1_flipped = [None] * self.num_models
+                part_1_flipped[i] = self.models[i](sub_images_flipped[i], part=1)
             fused_flipped_1 = self.apply_early_fusion(img_flipped, part_1_flipped)
             part_2_flipped = self.models[0](fused_flipped_1, part=2)
             output_heatmap_flipped = self.keypoint_head.inference_model(
