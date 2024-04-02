@@ -48,6 +48,7 @@ class TopDownEarlyFusion(BaseFusionPose):
         train_cfg=None,
         freeze_head: bool = False,
         cycle_train: bool = False,
+        allow_fusion_bias: bool = True,
         train_fusion_only=False,
         include_fusion_in_cycle_train: bool = True,
         image_dropout_prob: Optional[float] = None,
@@ -57,6 +58,7 @@ class TopDownEarlyFusion(BaseFusionPose):
     ):
         super().__init__()
         self.fp16_enabled = False
+        self.allow_fusion_bias = allow_fusion_bias
         self.models = torch.nn.ModuleList()
         self.image_dropout_prob = image_dropout_prob
         self.include_fusion_in_cycle_train = include_fusion_in_cycle_train
@@ -349,7 +351,9 @@ class TopDownEarlyFusion(BaseFusionPose):
         )
         pool_layer = torch.nn.AvgPool2d(kernel_size=8)
         flatten_layer = torch.nn.Flatten()
-        linear_layer = torch.nn.Linear(linear_layer_size, self.num_models)
+        linear_layer = torch.nn.Linear(
+            linear_layer_size, self.num_models, bias=self.allow_fusion_bias
+        )
         softmax_layer = torch.nn.Softmax(dim=1)
         return torch.nn.Sequential(
             pool_layer, flatten_layer, linear_layer, softmax_layer
