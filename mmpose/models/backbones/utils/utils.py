@@ -2,13 +2,12 @@
 from collections import OrderedDict
 
 from mmcv.runner.checkpoint import _load_checkpoint, load_state_dict
+from typing import Optional
 
 
-def load_checkpoint(model,
-                    filename,
-                    map_location='cpu',
-                    strict=False,
-                    logger=None):
+def load_checkpoint(
+    model, filename, map_location="cpu", strict=False, logger=None, override_prefix=""
+):
     """Load checkpoint from a file or URI.
 
     Args:
@@ -19,6 +18,8 @@ def load_checkpoint(model,
         strict (bool): Whether to allow different params for the model and
             checkpoint.
         logger (:mod:`logging.Logger` or None): The logger for error message.
+        override_prefix (str): prefix for keys to use in the state dict. Useful
+            when there is more than one backbone in the checkpoint file.
 
     Returns:
         dict or OrderedDict: The loaded checkpoint.
@@ -26,22 +27,25 @@ def load_checkpoint(model,
     checkpoint = _load_checkpoint(filename, map_location)
     # OrderedDict is a subclass of dict
     if not isinstance(checkpoint, dict):
-        raise RuntimeError(
-            f'No state_dict found in checkpoint file {filename}')
+        raise RuntimeError(f"No state_dict found in checkpoint file {filename}")
     # get state_dict from checkpoint
-    if 'state_dict' in checkpoint:
-        state_dict_tmp = checkpoint['state_dict']
+    if "state_dict" in checkpoint:
+        state_dict_tmp = checkpoint["state_dict"]
     else:
         state_dict_tmp = checkpoint
 
     state_dict = OrderedDict()
     # strip prefix of state_dict
     for k, v in state_dict_tmp.items():
-        if k.startswith('module.backbone.'):
+        if override_prefix != "":
+            if k.startswith(override_prefix):
+                state_dict[k[len(override_prefix) :]] = v
+            continue
+        if k.startswith("module.backbone."):
             state_dict[k[16:]] = v
-        elif k.startswith('module.'):
+        elif k.startswith("module."):
             state_dict[k[7:]] = v
-        elif k.startswith('backbone.'):
+        elif k.startswith("backbone."):
             state_dict[k[9:]] = v
         else:
             state_dict[k] = v
@@ -50,7 +54,7 @@ def load_checkpoint(model,
     return checkpoint
 
 
-def get_state_dict(filename, map_location='cpu'):
+def get_state_dict(filename, map_location="cpu"):
     """Get state_dict from a file or URI.
 
     Args:
@@ -64,22 +68,21 @@ def get_state_dict(filename, map_location='cpu'):
     checkpoint = _load_checkpoint(filename, map_location)
     # OrderedDict is a subclass of dict
     if not isinstance(checkpoint, dict):
-        raise RuntimeError(
-            f'No state_dict found in checkpoint file {filename}')
+        raise RuntimeError(f"No state_dict found in checkpoint file {filename}")
     # get state_dict from checkpoint
-    if 'state_dict' in checkpoint:
-        state_dict_tmp = checkpoint['state_dict']
+    if "state_dict" in checkpoint:
+        state_dict_tmp = checkpoint["state_dict"]
     else:
         state_dict_tmp = checkpoint
 
     state_dict = OrderedDict()
     # strip prefix of state_dict
     for k, v in state_dict_tmp.items():
-        if k.startswith('module.backbone.'):
+        if k.startswith("module.backbone."):
             state_dict[k[16:]] = v
-        elif k.startswith('module.'):
+        elif k.startswith("module."):
             state_dict[k[7:]] = v
-        elif k.startswith('backbone.'):
+        elif k.startswith("backbone."):
             state_dict[k[9:]] = v
         else:
             state_dict[k] = v

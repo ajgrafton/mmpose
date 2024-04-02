@@ -1,5 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from .alexnet import AlexNet
+from .breakable_backbone import BreakableBackbone
+from .breakable_hrnet import BreakableHRNet
 from .cpm import CPM
 from .hourglass import HourglassNet
 from .hourglass_ae import HourglassAENet
@@ -30,10 +32,37 @@ from .vipnas_mbv3 import ViPNAS_MobileNetV3
 from .vipnas_resnet import ViPNAS_ResNet
 
 __all__ = [
-    'AlexNet', 'HourglassNet', 'HourglassAENet', 'HRNet', 'MobileNetV2',
-    'MobileNetV3', 'RegNet', 'ResNet', 'ResNetV1d', 'ResNeXt', 'SCNet',
-    'SEResNet', 'SEResNeXt', 'ShuffleNetV1', 'ShuffleNetV2', 'CPM', 'RSN',
-    'MSPN', 'ResNeSt', 'VGG', 'TCN', 'ViPNAS_ResNet', 'ViPNAS_MobileNetV3',
-    'LiteHRNet', 'V2VNet', 'HRFormer', 'PyramidVisionTransformer',
-    'PyramidVisionTransformerV2', 'SwinTransformer', 'I3D', 'TCFormer'
+    "AlexNet",
+    "BreakableBackbone",
+    "BreakableHRNet",
+    "HourglassNet",
+    "HourglassAENet",
+    "HRNet",
+    "MobileNetV2",
+    "MobileNetV3",
+    "RegNet",
+    "ResNet",
+    "ResNetV1d",
+    "ResNeXt",
+    "SCNet",
+    "SEResNet",
+    "SEResNeXt",
+    "ShuffleNetV1",
+    "ShuffleNetV2",
+    "CPM",
+    "RSN",
+    "MSPN",
+    "ResNeSt",
+    "VGG",
+    "TCN",
+    "ViPNAS_ResNet",
+    "ViPNAS_MobileNetV3",
+    "LiteHRNet",
+    "V2VNet",
+    "HRFormer",
+    "PyramidVisionTransformer",
+    "PyramidVisionTransformerV2",
+    "SwinTransformer",
+    "I3D",
+    "TCFormer",
 ]

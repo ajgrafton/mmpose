@@ -43,7 +43,7 @@ class MultiTopDown(BasePose):
     ):
         super().__init__()
         self.fp16_enabled = False
-        self.models = []
+        self.models = torch.nn.ModuleList()
         self.model_slices = []
         current_channel = 0
         self.train_cfg = train_cfg
@@ -54,28 +54,30 @@ class MultiTopDown(BasePose):
             backbone_i = backbones[i]
             # neck_i = None
             # if necks is not None:
-                # neck_i = builder.build_neck(necks[i])
+            # neck_i = builder.build_neck(necks[i])
 
             model_i = builder.build_backbone(backbone_i)
-            num_channels_i = backbone_i['in_channels']
-
-            pretrained_i = None
-            if pretrained is not None:
-                pretrained_i = pretrained[i]
-            model_i.init_weights(pretrained_i)
+            num_channels_i = backbone_i["in_channels"]
+            prefix = f"models.{i}."
+            # pretrained_i = None
+            # if pretrained is not None:
+            # pretrained_i = pretrained[i]
+            model_i.init_weights(pretrained, override_prefix=prefix)
 
             # model_i = TopDown(
             #     backbone_i, neck_i, None, train_cfg, test_cfg, pretrained_i, loss_pose
             # )
             # model_i.init_weights(None)
-            self.model_slices.append(slice(current_channel, current_channel + num_channels_i))
-            model_i = model_i.to('cuda')
+            self.model_slices.append(
+                slice(current_channel, current_channel + num_channels_i)
+            )
+            # model_i = model_i.to('cuda')
             self.models.append(model_i)
             current_channel += num_channels_i
 
         keypoint_head["train_cfg"] = train_cfg
         keypoint_head["test_cfg"] = test_cfg
-        self.head = builder.build_head(keypoint_head)
+        self.keypoint_head = builder.build_head(keypoint_head)
 
     @auto_fp16(apply_to=("img",))
     def forward(
@@ -86,7 +88,7 @@ class MultiTopDown(BasePose):
         img_metas=None,
         return_loss=True,
         return_heatmap=False,
-        **kwargs
+        **kwargs,
     ):
         if return_loss:
             return self.forward_train(img, target, target_weight, img_metas, **kwargs)
@@ -105,13 +107,15 @@ class MultiTopDown(BasePose):
         ]
 
         # Run through the head
-        output = self.head(output)
+        output = self.keypoint_head(output)
 
         # Get the losses
         losses = dict()
-        keypoint_losses = self.head.get_loss(output, target, target_weight)
+        keypoint_losses = self.keypoint_head.get_loss(output, target, target_weight)
         losses.update(keypoint_losses)
-        keypoint_accuracy = self.head.get_accuracy(output, target, target_weight)
+        keypoint_accuracy = self.keypoint_head.get_accuracy(
+            output, target, target_weight
+        )
         losses.update(keypoint_accuracy)
 
         return losses
@@ -132,21 +136,23 @@ class MultiTopDown(BasePose):
             torch.cat([op[i] for op in features], dim=1)
             for i in range(len(features[0]))
         ]
-        output_heatmap = self.head.inference_model(features, flip_pairs=None)
+        output_heatmap = self.keypoint_head.inference_model(features, flip_pairs=None)
 
         if self.test_cfg.get("flip_test", True):
-            img_flipped = img.flip(4)
-            sub_images_flipped = [img_flipped[:, model_slice, ...] for model_slice in self.model_slices]
+            img_flipped = img.flip(3)
+            sub_images_flipped = [
+                img_flipped[:, model_slice, ...] for model_slice in self.model_slices
+            ]
             features_flipped = [
                 self.models[i](sub_images_flipped[i]) for i in range(self.num_models)
             ]
 
             # Stack the outputs
             features_flipped = [
-                torch.cat([op[i] for op in features_flipped], dim=0)
+                torch.cat([op[i] for op in features_flipped], dim=1)
                 for i in range(len(features_flipped[0]))
             ]
-            output_flipped_heatmap = self.head.inference_model(
+            output_flipped_heatmap = self.keypoint_head.inference_model(
                 features_flipped, img_metas[0]["flip_pairs"]
             )
             output_heatmap = output_heatmap + output_flipped_heatmap
@@ -154,7 +160,7 @@ class MultiTopDown(BasePose):
                 output_heatmap[..., 0] -= 1.0 / img_width
             output_heatmap = output_heatmap / 2
 
-        keypoint_result = self.head.decode(
+        keypoint_result = self.keypoint_head.decode(
             img_metas, output_heatmap, img_size=[img_width, img_height]
         )
         result.update(keypoint_result)
@@ -169,7 +175,7 @@ class MultiTopDown(BasePose):
             self.models[i].forward_dummy(img[i]) for i in range(self.num_models)
         ]
         dummy_results = torch.cat(dummy_results, dim=0)
-        dummy_results = self.head(dummy_results)
+        dummy_results = self.keypoint_head(dummy_results)
         return dummy_results
 
     @deprecated_api_warning({"pose_limb_color": "pose_link_color"}, cls_name="TopDown")

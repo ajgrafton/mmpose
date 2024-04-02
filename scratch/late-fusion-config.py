@@ -83,8 +83,11 @@ channel_cfg = dict(
     inference_channel=[5, 6, 11, 12],
 )
 model = dict(
-    type="MultiTopDown",
+    type="TopDownLateFusion",
+    selector_indices=[0, 1, 2],
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
+    selector=dict(type="ResNet", depth=18),
+    selector_head_map_size=[56, 72],
     backbones=[
         dict(
             type="HRNet",
@@ -191,7 +194,7 @@ model = dict(
     ],
     keypoint_head=dict(
         type="TopdownHeatmapSimpleHead",
-        in_channels=96,
+        in_channels=32,
         out_channels=4,
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1),
@@ -199,7 +202,7 @@ model = dict(
     ),
     train_cfg=dict(),
     test_cfg=dict(
-        flip_test=True,
+        flip_test=False,
         post_process="default",
         shift_heatmap=False,
         target_type="GaussianHeatmap",
@@ -208,8 +211,8 @@ model = dict(
     ),
 )
 data_cfg = dict(
-    image_size=[896, 1152],
-    heatmap_size=[224, 288],
+    image_size=[224, 288],
+    heatmap_size=[56, 72],
     num_output_channels=4,
     num_joints=4,
     dataset_channel=[[5, 6, 11, 12]],

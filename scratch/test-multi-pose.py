@@ -1,9 +1,11 @@
 from mmpose.apis import init_pose_model
 from mmpose.core import optimizers
+from mmcv.runner.epoch_based_runner import save_checkpoint
 from mmcv import Config
 import torch
 
-device = torch.device("cuda")
+device = torch.device("cpu")
+device = "cpu"
 
 img_1 = torch.zeros((1, 3, 480, 256), dtype=torch.float, device=device)
 img_2 = torch.zeros((1, 1, 480, 256), dtype=torch.float, device=device)
@@ -14,8 +16,13 @@ target = torch.zeros((1, 4, 96, 80), dtype=torch.float, device=device)
 target_weight = torch.zeros((1, 4, 1), dtype=torch.float, device=device)
 metas = [meta_dict]
 config_file = "multi-test-config.py"
-model = init_pose_model(config_file)  # , device=device)
-
+model = init_pose_model(config_file, device="cpu")
+save_checkpoint(model, "test.pth")
+loaded = torch.load("test.pth")
+state_dict = loaded["state_dict"]
+for key in state_dict.keys():
+    print(key)
+exit()
 config = Config.fromfile(config_file)
 optimizer: torch.optim.Optimizer = optimizers.build_optimizers(
     model, config["optimizer"]

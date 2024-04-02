@@ -1,9 +1,12 @@
 LEARNING_RATE = 0.0005
 MK = "mk001a"
-data_root = "/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-datasets/torso-3/"
-ann_file = f"{data_root}/jsons/torso_annotations_{MK}.json"
-val_file = f"{data_root}/jsons/torso_annotations_{MK}_bgr_validation.json"
-img_prefix = f"{data_root}/archives/"
+ann_file = "/Users/alex/dev/mmpose-old/scratch/test-multi-annotations.json"
+val_file = "/Users/alex/dev/mmpose-old/scratch/test-multi-annotations.json"
+img_prefix = "/Users/alex/dev/mmpose-old/scratch/test-multi-archives/"
+# data_root = "/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-datasets/torso-3/"
+# ann_file = f"{data_root}/jsons/torso_annotations_{MK}.json"
+# val_file = f"{data_root}/jsons/torso_annotations_{MK}_bgr_validation.json"
+# img_prefix = f"{data_root}/archives/"
 
 checkpoint_config = dict(interval=1)
 log_config = dict(interval=50, hooks=[dict(type="TextLoggerHook")])
@@ -83,11 +86,16 @@ channel_cfg = dict(
     inference_channel=[5, 6, 11, 12],
 )
 model = dict(
-    type="MultiTopDown",
+    type="TopDownEarlyFusion",
+    selector_indices=[0, 1, 2],
+    fuse_after_stage=2,
+    freeze_head=True,
+    selector_head_map_size=[56, 72],
     pretrained="/Users/alex/dev/mmpose-old/scratch/multi-model.pth",
+    selector=dict(type="ResNet", depth=18),
     backbones=[
         dict(
-            type="HRNet",
+            type="BreakableHRNet",
             in_channels=3,
             extra=dict(
                 stage1=dict(
@@ -121,7 +129,7 @@ model = dict(
             ),
         ),
         dict(
-            type="HRNet",
+            type="BreakableHRNet",
             in_channels=1,
             extra=dict(
                 stage1=dict(
@@ -155,7 +163,7 @@ model = dict(
             ),
         ),
         dict(
-            type="HRNet",
+            type="BreakableHRNet",
             in_channels=1,
             extra=dict(
                 stage1=dict(
@@ -191,7 +199,7 @@ model = dict(
     ],
     keypoint_head=dict(
         type="TopdownHeatmapSimpleHead",
-        in_channels=96,
+        in_channels=32,
         out_channels=4,
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1),
@@ -224,8 +232,8 @@ data_cfg = dict(
     bbox_file="/Users/alex/dev/topdown/jsons/example-json.json",
 )
 
-img_mean = [0.485, 0.456, 0.406, 0.449, 0.449]
-img_std = [0.229, 0.224, 0.225, 0.226, 0.226]
+img_mean = [0.485, 0.456, 0.406, 0.336, 0.579]
+img_std = [0.229, 0.224, 0.225, 0.200, 0.280]
 
 train_pipeline = [
     dict(type="LoadImageFromMeerkat"),
@@ -280,7 +288,7 @@ val_pipeline = [
     ),
 ]
 test_pipeline = [
-    dict(type="LoadImageFromMeerkat"),
+    dict(type="LoadMultipleImagesFromMeerkat"),
     dict(type="TopDownGetBboxCenterScale", padding=1.25),
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
     dict(type="TopDownAffine", use_udp=True),
@@ -302,9 +310,9 @@ test_pipeline = [
 
 data = dict(
     samples_per_gpu=2,
-    workers_per_gpu=1,
+    workers_per_gpu=0,
     val_dataloader=dict(samples_per_gpu=24),
-    test_dataloader=dict(samples_per_gpu=24),
+    test_dataloader=dict(samples_per_gpu=2),
     train=dict(
         type="TopDownCocoDataset",
         ann_file=ann_file,
