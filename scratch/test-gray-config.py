@@ -1,17 +1,14 @@
 LEARNING_RATE = 0.0005
 MK = "mk001a"
-ann_file = "/Users/alex/dev/mmpose-old/scratch/test-multi-annotations.json"
-val_file = "/Users/alex/dev/mmpose-old/scratch/test-multi-annotations.json"
-img_prefix = "/Users/alex/dev/mmpose-old/scratch/test-multi-archives/"
-# data_root = "/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-datasets/torso-3/"
-# ann_file = f"{data_root}/jsons/torso_annotations_{MK}.json"
-# val_file = f"{data_root}/jsons/torso_annotations_{MK}_bgr_validation.json"
-# img_prefix = f"{data_root}/archives/"
+data_root = "/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-datasets/torso-3/"
+ann_file = f"{data_root}/jsons/torso_annotations_{MK}.json"
+val_file = f"{data_root}/jsons/torso_annotations_{MK}_bgr_validation.json"
+img_prefix = f"{data_root}/archives/"
 
 checkpoint_config = dict(interval=1)
-log_config = dict(interval=1, hooks=[dict(type="TextLoggerHook")])
+log_config = dict(interval=50, hooks=[dict(type="TextLoggerHook")])
 log_level = "INFO"
-load_from = "/Users/alex/dev/mmpose-old/scratch/early-fusion-stage2-model.pth"
+load_from = None
 resume_from = None
 dist_params = dict(backend="nccl")
 workflow = [("train", 1)]
@@ -86,118 +83,43 @@ channel_cfg = dict(
     inference_channel=[5, 6, 11, 12],
 )
 model = dict(
-    type="TopDownEarlyFusion",
-    selector_indices=[0, 1, 2],
-    fuse_after_stage=2,
-    cycle_train=True,
-    freeze_head=False,
-    selector_head_map_size=[56, 72],
+    type="TopDown",
     pretrained=None,
-    selector=dict(type="ResNet", depth=18),
-    backbones=[
-        dict(
-            type="BreakableHRNet",
-            in_channels=3,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
+    # pretrained="/rds/user/ajg206/rds-meerkat-Y4bixlqNojM/pose-work/pretrained/td_torso_model.pth",
+    backbone=dict(
+        type="HRNet",
+        in_channels=1,
+        extra=dict(
+            stage1=dict(
+                num_modules=1,
+                num_branches=1,
+                block="BOTTLENECK",
+                num_blocks=(4,),
+                num_channels=(64,),
+            ),
+            stage2=dict(
+                num_modules=1,
+                num_branches=2,
+                block="BASIC",
+                num_blocks=(4, 4),
+                num_channels=(32, 64),
+            ),
+            stage3=dict(
+                num_modules=4,
+                num_branches=3,
+                block="BASIC",
+                num_blocks=(4, 4, 4),
+                num_channels=(32, 64, 128),
+            ),
+            stage4=dict(
+                num_modules=3,
+                num_branches=4,
+                block="BASIC",
+                num_blocks=(4, 4, 4, 4),
+                num_channels=(32, 64, 128, 256),
             ),
         ),
-        dict(
-            type="BreakableHRNet",
-            in_channels=1,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
-            ),
-        ),
-        dict(
-            type="BreakableHRNet",
-            in_channels=1,
-            extra=dict(
-                stage1=dict(
-                    num_modules=1,
-                    num_branches=1,
-                    block="BOTTLENECK",
-                    num_blocks=(4,),
-                    num_channels=(64,),
-                ),
-                stage2=dict(
-                    num_modules=1,
-                    num_branches=2,
-                    block="BASIC",
-                    num_blocks=(4, 4),
-                    num_channels=(32, 64),
-                ),
-                stage3=dict(
-                    num_modules=4,
-                    num_branches=3,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4),
-                    num_channels=(32, 64, 128),
-                ),
-                stage4=dict(
-                    num_modules=3,
-                    num_branches=4,
-                    block="BASIC",
-                    num_blocks=(4, 4, 4, 4),
-                    num_channels=(32, 64, 128, 256),
-                ),
-            ),
-        ),
-    ],
+    ),
     keypoint_head=dict(
         type="TopdownHeatmapSimpleHead",
         in_channels=32,
@@ -208,7 +130,7 @@ model = dict(
     ),
     train_cfg=dict(),
     test_cfg=dict(
-        flip_test=True,
+        flip_test=False,
         post_process="default",
         shift_heatmap=False,
         target_type="GaussianHeatmap",
@@ -232,10 +154,6 @@ data_cfg = dict(
     use_nms=False,
     bbox_file="/Users/alex/dev/topdown/jsons/example-json.json",
 )
-
-img_mean = [0.485, 0.456, 0.406, 0.336, 0.579]
-img_std = [0.229, 0.224, 0.225, 0.200, 0.280]
-
 train_pipeline = [
     dict(type="LoadMultipleImagesFromMeerkat"),
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
@@ -245,7 +163,7 @@ train_pipeline = [
     dict(type="TopDownGetRandomScaleRotation", rot_factor=40, scale_factor=0.5),
     dict(type="TopDownAffine", use_udp=True),
     dict(type="ToTensor"),
-    dict(type="NormalizeTensor", mean=img_mean, std=img_std),
+    dict(type="NormalizeTensor", mean=[0.449], std=[0.226]),
     dict(
         type="TopDownGenerateTarget",
         sigma=3,
@@ -267,14 +185,12 @@ train_pipeline = [
         ],
     ),
 ]
-
-
 val_pipeline = [
     dict(type="LoadMultipleImagesFromMeerkat"),
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
     dict(type="TopDownAffine", use_udp=True),
     dict(type="ToTensor"),
-    dict(type="NormalizeTensor", mean=img_mean, std=img_std),
+    dict(type="NormalizeTensor", mean=[0.449], std=[0.226]),
     dict(
         type="Collect",
         keys=["img"],
@@ -294,7 +210,7 @@ test_pipeline = [
     dict(type="TopDownMakeBboxFullImage", padding=1.25),
     dict(type="TopDownAffine", use_udp=True),
     dict(type="ToTensor"),
-    dict(type="NormalizeTensor", mean=img_mean, std=img_std),
+    dict(type="NormalizeTensor", mean=[0.449], std=[0.226]),
     dict(
         type="Collect",
         keys=["img"],
@@ -311,9 +227,9 @@ test_pipeline = [
 
 data = dict(
     samples_per_gpu=2,
-    workers_per_gpu=0,
+    workers_per_gpu=1,
     val_dataloader=dict(samples_per_gpu=24),
-    test_dataloader=dict(samples_per_gpu=2),
+    test_dataloader=dict(samples_per_gpu=24),
     train=dict(
         type="TopDownCocoDataset",
         ann_file=ann_file,

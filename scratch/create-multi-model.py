@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 
 
 image_file = "/Users/alex/Downloads/person.jpg"
-pretrained_model_file = "/Users/alex/Downloads/epoch_10-3.pth"
+pretrained_model_file = "/Users/alex/Downloads/epoch_10-4.pth"
 multi_model_file = "multi-model.pth"
 multi_config_file = "multi-test-config.py"
 ref_model_file = "/Users/alex/Downloads/td_torso_model.pth"
 ref_model_config = "color-model-config.py"
 
-# model_params = torch.load(ref_model_file, map_location="cpu")
-model_params = torch.load(pretrained_model_file, map_location="cpu")
+model_params = torch.load(ref_model_file, map_location="cpu")
+# model_params = torch.load(pretrained_model_file, map_location="cpu")
 
 # The backbone needs to be replaced with "models.0" in the key
 state_dict = model_params["state_dict"]
