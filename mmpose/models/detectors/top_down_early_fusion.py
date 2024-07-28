@@ -259,7 +259,7 @@ class TopDownEarlyFusion(BaseFusionPose):
         losses.update(keypoint_accuracy)
         return losses
 
-    def forward_train(self, img, target, target_weight, img_metas, **kwargs):
+    def forward_train(self, img, target, target_weight, img_metas, **kwargs):  # ignore
         if self.cycle_train or self.train_fusion_only:
             return self.forward_train_cycle(
                 img, target, target_weight, img_metas, **kwargs
